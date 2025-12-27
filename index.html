@@ -3,18 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MLBB Mobile Arena</title>
+    <title>MLBB Map & Minimap</title>
     <style>
         body { margin: 0; overflow: hidden; background: #050a05; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
         #ui { position: absolute; inset: 0; pointer-events: none; }
+        
+        /* Мини-карта */
+        #minimap {
+            position: absolute; top: 20px; left: 20px;
+            width: 120px; height: 120px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #cd9d1d; border-radius: 5px;
+            overflow: hidden; pointer-events: none;
+        }
+        #minimap-player {
+            position: absolute; width: 6px; height: 6px;
+            background: #0088ff; border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Джойстик */
         #joy-container {
-            position: absolute; bottom: 40px; left: 40px; width: 110px; height: 110px;
-            background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50%; pointer-events: auto;
+            position: absolute; bottom: 40px; left: 40px; width: 100px; height: 100px;
+            background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%;
+            pointer-events: auto;
         }
         #joy-stick {
-            position: absolute; top: 50%; left: 50%; width: 45px; height: 45px;
+            position: absolute; top: 50%; left: 50%; width: 40px; height: 40px;
             background: #fff; opacity: 0.5; border-radius: 50%; transform: translate(-50%, -50%);
         }
     </style>
@@ -22,187 +38,173 @@
 <body>
 
     <div id="ui">
+        <div id="minimap">
+            <div id="minimap-player"></div>
+        </div>
         <div id="joy-container"><div id="joy-stick"></div></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        // --- КЛАСС ГЕРОЯ (АРХИТЕКТУРА ПЕРСОНАЖА) ---
+        // --- КЛАСС ГЕРОЯ ---
         class Hero {
             constructor(scene, color) {
                 this.group = new THREE.Group();
-                
-                // Тело (Торс)
-                const body = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.8, 1, 0.6),
-                    new THREE.MeshStandardMaterial({ color: color })
-                );
-                body.position.y = 1.2;
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.6), new THREE.MeshStandardMaterial({ color }));
+                body.position.y = 1;
                 this.group.add(body);
-
-                // Голова с "глазом"
-                const head = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.5, 0.4, 0.5),
-                    new THREE.MeshStandardMaterial({ color: 0x333333 })
-                );
-                head.position.y = 2.0;
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+                head.position.y = 1.9;
                 this.group.add(head);
-
-                const eye = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.3, 0.1, 0.1),
-                    new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff })
-                );
-                eye.position.set(0, 2.0, 0.25);
-                this.group.add(eye);
-
-                // Ноги
-                const legGeo = new THREE.BoxGeometry(0.3, 0.8, 0.3);
-                const legL = new THREE.Mesh(legGeo, new THREE.MeshStandardMaterial({ color: 0x222222 }));
-                legL.position.set(0.2, 0.4, 0);
-                const legR = legL.clone();
-                legR.position.set(-0.2, 0.4, 0);
-                this.group.add(legL, legR);
-
                 scene.add(this.group);
-                
-                this.radius = 0.7; // Радиус для коллизий
-                this.speed = 0.07; // Умеренная скорость
+                this.radius = 0.6;
+                this.speed = 0.12;
             }
-
             update(mx, mz, obstacles) {
                 let nextX = this.group.position.x + mx * this.speed;
                 let nextZ = this.group.position.z + mz * this.speed;
-
-                // Проверка коллизий
                 let collision = false;
                 for (let obj of obstacles) {
                     const dx = nextX - obj.position.x;
                     const dz = nextZ - obj.position.z;
-                    const distance = Math.sqrt(dx*dx + dz*dz);
-                    
-                    // Сумма радиусов (герой + примерный радиус постройки)
-                    const minAllowedDist = this.radius + (obj.userData.radius || 1.5);
-                    
-                    if (distance < minAllowedDist) {
-                        collision = true;
-                        break;
-                    }
+                    const dist = Math.sqrt(dx*dx + dz*dz);
+                    if (dist < this.radius + (obj.userData.radius || 1)) { collision = true; break; }
                 }
-
                 if (!collision) {
-                    this.group.position.x = nextX;
-                    this.group.position.z = nextZ;
+                    this.group.position.set(nextX, 0, nextZ);
                 }
-
-                // Плавный поворот в сторону движения
-                const targetAngle = Math.atan2(mx, mz);
-                this.group.rotation.y = targetAngle;
+                if (mx !== 0 || mz !== 0) this.group.rotation.y = Math.atan2(mx, mz);
             }
         }
 
-        // --- ГЛАВНЫЙ ДВИЖОК ИГРЫ ---
+        // --- ДВИЖОК ---
         let scene, camera, renderer, player, obstacles = [];
         let joyX = 0, joyZ = 0, isMoving = false;
+        const MAP_SIZE = 100;
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a150a);
-            scene.fog = new THREE.Fog(0x0a150a, 20, 100);
+            scene.background = new THREE.Color(0x0a100a);
+            scene.fog = new THREE.Fog(0x0a100a, 20, 80);
 
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
             document.body.appendChild(renderer.domElement);
 
-            // Освещение
-            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-            const sun = new THREE.DirectionalLight(0xffffff, 1);
-            sun.position.set(10, 20, 15);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(20, 40, 20);
             scene.add(sun);
 
             // Земля
-            const ground = new THREE.Mesh(
-                new THREE.PlaneGeometry(200, 200),
-                new THREE.MeshStandardMaterial({ color: 0x1a2b1a })
-            );
-            ground.rotation.x = -Math.PI / 2;
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE), new THREE.MeshStandardMaterial({ color: 0x152515 }));
+            ground.rotation.x = -Math.PI/2;
             scene.add(ground);
 
-            const grid = new THREE.GridHelper(200, 50, 0x223322, 0x112211);
-            scene.add(grid);
+            // Создание декораций (Лес и Линии)
+            buildMap();
 
-            // Создание объектов с коллизией
-            addBuilding(-15, -10, 3, 8, 0x555555, "Tower");
-            addBuilding(10, 5, 4, 4, 0x3d2b1f, "Rock");
-            addBuilding(-5, 12, 2, 6, 0x3d2b1f, "Pillar");
-
-            // Игрок
             player = new Hero(scene, 0x0088ff);
+            player.group.position.set(-40, 0, 40); // Начальная точка (Синяя база)
 
             setupJoystick();
             animate();
         }
 
-        function addBuilding(x, z, w, h, color, type) {
+        function buildMap() {
+            // Центральная линия (разметка)
+            const lineMat = new THREE.MeshBasicMaterial({ color: 0x223322 });
+            const midLine = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE * 1.4, 4), lineMat);
+            midLine.rotation.x = -Math.PI/2;
+            midLine.rotation.z = Math.PI/4;
+            scene.add(midLine);
+
+            // Базы
+            addObj(-42, 42, 6, 2, 0x004488, "Base"); // Синяя
+            addObj(42, -42, 6, 2, 0x880000, "Base"); // Красная
+
+            // Лесные массивы (кусты и деревья)
+            for(let i=0; i<60; i++) {
+                let rx = (Math.random() - 0.5) * MAP_SIZE;
+                let rz = (Math.random() - 0.5) * MAP_SIZE;
+                
+                // Не ставим деревья на главные линии
+                if (Math.abs(rx + rz) > 10 && Math.abs(rx) > 5 && Math.abs(rz) > 5) {
+                    addObj(rx, rz, 1.5, 3 + Math.random()*4, 0x0b1a0b, "Tree");
+                }
+            }
+        }
+
+        function addObj(x, z, r, h, color, type) {
             const mesh = new THREE.Mesh(
-                type === "Tower" ? new THREE.CylinderGeometry(w, w, h, 16) : new THREE.BoxGeometry(w, h, w),
-                new THREE.MeshStandardMaterial({ color: color })
+                new THREE.CylinderGeometry(r, r, h, 8),
+                new THREE.MeshStandardMaterial({ color })
             );
             mesh.position.set(x, h/2, z);
-            mesh.userData.radius = w / 1.5; // Записываем радиус объекта для коллизий
+            mesh.userData.radius = r;
             scene.add(mesh);
             obstacles.push(mesh);
+            
+            // Добавляем метку на мини-карту
+            createMinimapDot(x, z, type);
+        }
+
+        function createMinimapDot(x, z, type) {
+            const dot = document.createElement('div');
+            dot.style.position = 'absolute';
+            dot.style.width = '3px';
+            dot.style.height = '3px';
+            dot.style.background = (type === "Base") ? "gold" : "#333";
+            // Конвертация координат 3D в координаты мини-карты (0-120px)
+            let mx = ((x + MAP_SIZE/2) / MAP_SIZE) * 120;
+            let my = ((z + MAP_SIZE/2) / MAP_SIZE) * 120;
+            dot.style.left = mx + 'px';
+            dot.style.top = my + 'px';
+            document.getElementById('minimap').appendChild(dot);
         }
 
         function setupJoystick() {
             const container = document.getElementById('joy-container');
             const stick = document.getElementById('joy-stick');
-
-            const move = (e) => {
+            const handle = (e) => {
                 e.preventDefault();
-                const touch = e.touches[0];
-                const rect = container.getBoundingClientRect();
-                const cx = rect.left + rect.width / 2;
-                const cy = rect.top + rect.height / 2;
-                const dx = touch.clientX - cx;
-                const dy = touch.clientY - cy;
-                const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 45);
-                const angle = Math.atan2(dy, dx);
-
-                stick.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
-                joyX = Math.cos(angle);
-                joyZ = Math.sin(angle);
+                const t = e.touches[0];
+                const r = container.getBoundingClientRect();
+                const dx = t.clientX - (r.left + 50);
+                const dy = t.clientY - (r.top + 50);
+                const d = Math.min(Math.sqrt(dx*dx+dy*dy), 40);
+                const a = Math.atan2(dy, dx);
+                stick.style.transform = `translate(calc(-50% + ${Math.cos(a)*d}px), calc(-50% + ${Math.sin(a)*d}px))`;
+                joyX = Math.cos(a) * (d/40); joyZ = Math.sin(a) * (d/40);
                 isMoving = true;
             };
-
-            container.addEventListener('touchstart', (e) => { isMoving = true; move(e); }, {passive: false});
-            container.addEventListener('touchmove', move, {passive: false});
-            container.addEventListener('touchend', () => {
-                isMoving = false;
-                joyX = 0; joyZ = 0;
-                stick.style.transform = 'translate(-50%, -50%)';
+            container.addEventListener('touchstart', handle, {passive:false});
+            container.addEventListener('touchmove', handle, {passive:false});
+            container.addEventListener('touchend', () => { 
+                isMoving = false; joyX = 0; joyZ = 0; 
+                stick.style.transform = 'translate(-50%, -50%)'; 
             });
         }
 
         function animate() {
             requestAnimationFrame(animate);
+            if (isMoving) player.update(joyX, joyZ, obstacles);
 
-            if (isMoving) {
-                player.update(joyX, joyZ, obstacles);
-            }
+            // Камера
+            camera.position.set(player.group.position.x, 20, player.group.position.z + 15);
+            camera.lookAt(player.group.position.x, 0, player.group.position.z);
 
-            // Камера следит за героем (MLBB вид)
-            camera.position.set(player.group.position.x, 18, player.group.position.z + 14);
-            camera.lookAt(player.group.position.x, 1, player.group.position.z);
+            // Обновление игрока на мини-карте
+            const pDot = document.getElementById('minimap-player');
+            pDot.style.left = ((player.group.position.x + MAP_SIZE/2) / MAP_SIZE) * 120 + 'px';
+            pDot.style.top = ((player.group.position.z + MAP_SIZE/2) / MAP_SIZE) * 120 + 'px';
 
             renderer.render(scene, camera);
         }
 
         init();
-
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
