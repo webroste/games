@@ -3,324 +3,280 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MLBB: Master Edition</title>
+    <title>MLBB: Ultra Edition</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; user-select: none; }
         .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
         
         /* DEBUG CONSOLE */
         #debug-log {
-            position: absolute; top: 10px; left: 10px; width: 220px; max-height: 150px;
-            background: rgba(0,0,0,0.85); color: #0f0; font-family: monospace; font-size: 11px;
-            padding: 8px; border-radius: 6px; overflow-y: auto; z-index: 1000;
-            display: none; pointer-events: none; border: 1px solid #00ff0033;
+            position: absolute; top: 10px; left: 10px; width: 240px; max-height: 120px;
+            background: rgba(0,0,0,0.8); color: #00ffcc; font-family: monospace; font-size: 11px;
+            padding: 8px; border-radius: 5px; overflow-y: auto; z-index: 1000;
+            display: none; pointer-events: none; border: 1px solid #333;
         }
 
         /* МЕНЮ */
-        #menu-screen { background: radial-gradient(circle at center, #1a2a6c, #b21f1f, #fdbb2d); }
-        h1 { color: #fff; font-size: 40px; text-shadow: 0 5px 15px rgba(0,0,0,0.5); margin-bottom: 30px; }
+        #menu-screen { background: radial-gradient(circle, #1a2a6c, #000); }
+        h1 { color: #f1c40f; font-size: 36px; text-shadow: 0 0 20px #f1c40f; margin-bottom: 30px; }
         
-        #debug-toggle-btn {
-            position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.5);
-            color: #aaa; border: 1px solid #555; padding: 8px 15px; border-radius: 20px; cursor: pointer;
-        }
+        #debug-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid #fff; padding: 10px 15px; border-radius: 5px; cursor: pointer; pointer-events: auto; z-index: 1001; }
 
         /* ЗАГРУЗКА */
-        #loading-screen { background: #000; display: none; z-index: 100; }
-        .loader-text { color: white; margin-bottom: 15px; letter-spacing: 2px; }
-        .bar { width: 250px; height: 4px; background: #333; border-radius: 2px; }
-        .fill { width: 0%; height: 100%; background: #00d2ff; transition: width 0.1s; }
+        #loading-screen { background: #000; display: none; z-index: 500; }
+        .bar { width: 250px; height: 4px; background: #222; border-radius: 2px; margin-top: 15px; overflow: hidden; }
+        #fill { width: 0%; height: 100%; background: #f1c40f; }
 
-        /* ИГРОВОЙ UI */
-        #game-ui { display: none; pointer-events: none; }
-        #minimap { position: absolute; top: 15px; left: 15px; width: 120px; height: 120px; background: rgba(0,10,0,0.9); border: 2px solid #555; border-radius: 8px; }
+        /* НАСТРОЙКИ */
+        #settings-screen { background: rgba(0,0,0,0.95); display: none; color: white; z-index: 600; }
+        .s-row { width: 280px; display: flex; justify-content: space-between; align-items: center; margin: 15px 0; }
         
-        #joy-base { position: absolute; bottom: 40px; left: 40px; width: 110px; height: 110px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; pointer-events: auto; }
-        #joy-stick { position: absolute; top: 50%; left: 50%; width: 45px; height: 45px; background: radial-gradient(#fff, #ccc); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 15px rgba(0,0,0,0.5); }
+        .btn {
+            background: linear-gradient(to bottom, #2980b9, #3498db); border: 2px solid #f1c40f;
+            color: white; padding: 12px 40px; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; margin: 10px;
+        }
+
+        /* ИГРА */
+        #game-ui { display: none; pointer-events: none; }
+        #minimap { position: absolute; top: 15px; left: 15px; width: 120px; height: 120px; background: rgba(0,20,0,0.85); border: 2px solid #444; border-radius: 5px; }
+        #joy-base { position: absolute; bottom: 50px; left: 50px; width: 110px; height: 110px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; pointer-events: auto; }
+        #joy-stick { position: absolute; top: 50%; left: 50%; width: 45px; height: 45px; background: #fff; opacity: 0.6; border-radius: 50%; transform: translate(-50%, -50%); }
         
         #recall-btn { 
-            position: absolute; bottom: 40px; right: 40px; width: 80px; height: 80px; 
-            border-radius: 50%; background: linear-gradient(135deg, #4834d4, #686de0); 
-            border: 4px solid #fff; color: white; display: flex; align-items: center; justify-content: center; 
-            font-size: 35px; pointer-events: auto; cursor: pointer;
-            transition: transform 0.1s, box-shadow 0.3s;
-            box-shadow: 0 0 20px rgba(72, 52, 212, 0.6);
+            position: absolute; bottom: 50px; right: 50px; width: 80px; height: 80px; 
+            border-radius: 50%; background: #4834d4; border: 4px solid #fff; 
+            color: white; display: flex; align-items: center; justify-content: center; 
+            font-size: 35px; pointer-events: auto; box-shadow: 0 0 20px #4834d4; transition: transform 0.1s;
         }
-        #recall-btn:active { transform: scale(0.85); box-shadow: 0 0 40px #00d2ff; }
+        #recall-btn:active { transform: scale(0.85); background: #686de0; }
 
-        .btn-main {
-            background: rgba(255,255,255,0.1); border: 2px solid #fff; color: white;
-            padding: 15px 40px; font-size: 18px; border-radius: 30px; cursor: pointer; margin: 10px;
-            backdrop-filter: blur(5px); transition: 0.3s;
-        }
-        .btn-main:hover { background: #fff; color: #000; }
-
-        #msg { position: absolute; bottom: 160px; width: 100%; text-align: center; color: #00d2ff; font-weight: bold; font-size: 22px; display: none; text-shadow: 0 0 10px #000; }
+        #msg { position: absolute; bottom: 180px; width: 100%; text-align: center; color: #00ffff; font-size: 22px; font-weight: bold; display: none; text-shadow: 0 0 10px #000; }
     </style>
 </head>
 <body>
 
     <div id="debug-log"></div>
+    <div id="debug-btn" onclick="toggleDebug()">DEBUG: OFF</div>
 
     <div id="menu-screen" class="screen">
-        <div id="debug-toggle-btn" onclick="toggleDebug()">Debug: OFF</div>
         <h1>MOBA LEGENDS</h1>
-        <button class="btn-main" onclick="showLoading()">В БОЙ</button>
+        <button class="btn" onclick="startLoading()">ИГРАТЬ</button>
+        <button class="btn" onclick="openSettings(true)">НАСТРОЙКИ</button>
     </div>
 
     <div id="loading-screen" class="screen">
-        <div class="loader-text">ГЕНЕРАЦИЯ ЛАНДШАФТА...</div>
-        <div class="bar"><div id="fill" class="fill"></div></div>
+        <h2 style="color:white; letter-spacing: 2px;">ПОДГОТОВКА ГЕРОЯ...</h2>
+        <div class="bar"><div id="fill"></div></div>
+    </div>
+
+    <div id="settings-screen" class="screen">
+        <h2>НАСТРОЙКИ</h2>
+        <div class="s-row"><span>Чувствительность:</span><input type="range" id="sens" min="0.5" max="3" step="0.1" value="1.5"></div>
+        <div class="s-row"><span>Инверсия X:</span><input type="checkbox" id="invX"></div>
+        <div class="s-row"><span>Инверсия Y:</span><input type="checkbox" id="invY"></div>
+        <button class="btn" onclick="openSettings(false)">СОХРАНИТЬ</button>
     </div>
 
     <div id="game-ui" class="screen">
         <div id="minimap"></div>
         <div id="joy-base"><div id="joy-stick"></div></div>
         <div id="msg">ВОЗВРАЩЕНИЕ... <span id="timer">5</span></div>
-        <div id="recall-btn" ontouchstart="startRecall(event)" onmousedown="startRecall(event)">🏠</div>
+        <div id="recall-btn" onpointerdown="doRecall()">🏠</div>
         <div id="cam-zone" style="position:absolute; right:0; top:0; width:60%; height:100%; pointer-events:auto;"></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        const debugLog = document.getElementById('debug-log');
-        let debugEnabled = false;
-
-        function log(m, err=false) {
-            if(!debugEnabled) return;
+        const dbg = document.getElementById('debug-log');
+        let dbgOn = false;
+        function log(m, isErr = false) {
+            if(!dbgOn) return;
             const e = document.createElement('div');
-            e.style.color = err ? '#ff4b2b' : '#00d2ff';
+            e.style.color = isErr ? '#ff4757' : '#2ed573';
             e.innerText = `> ${m}`;
-            debugLog.appendChild(e);
-            debugLog.scrollTop = debugLog.scrollHeight;
+            dbg.appendChild(e);
+            dbg.scrollTop = dbg.scrollHeight;
         }
-
+        window.onerror = (m, u, l) => log(`ERR: ${m} (L${l})`, true);
         function toggleDebug() {
-            debugEnabled = !debugEnabled;
-            debugLog.style.display = debugEnabled ? 'block' : 'none';
-            document.getElementById('debug-toggle-btn').innerText = `Debug: ${debugEnabled ? 'ON' : 'OFF'}`;
-            log("Консоль активирована");
+            dbgOn = !dbgOn;
+            dbg.style.display = dbgOn ? 'block' : 'none';
+            document.getElementById('debug-btn').innerText = `DEBUG: ${dbgOn ? 'ON' : 'OFF'}`;
+            log("Дебаг консоль готова");
         }
 
-        window.onerror = (m, u, l) => log(`Ошибка: ${m} [стр. ${l}]`, true);
-
-        let scene, camera, renderer, player, recallPillar, obstacles = [];
+        let scene, camera, renderer, player, recallFx, obstacles = [];
         let isMoving = false, joyX = 0, joyZ = 0;
-        let isRecalling = false, recallInterval;
+        let isRecalling = false, recallInt;
         let camPan = { x: 0, z: 0 };
-        const MAP_SIZE = 200; 
+        let cfg = { sens: 1.5, iX: 1, iY: 1 };
 
-        function showLoading() {
+        function openSettings(show) { document.getElementById('settings-screen').style.display = show ? 'flex' : 'none'; }
+
+        function startLoading() {
             document.getElementById('menu-screen').style.display = 'none';
             document.getElementById('loading-screen').style.display = 'flex';
             let p = 0;
             let iv = setInterval(() => {
-                p += 4; document.getElementById('fill').style.width = p + '%';
-                if(p >= 100) { clearInterval(iv); init(); }
-            }, 30);
+                p += 5; document.getElementById('fill').style.width = p + '%';
+                if(p >= 100) { clearInterval(iv); initGame(); }
+            }, 50);
         }
 
-        function init() {
+        function initGame() {
+            cfg.sens = parseFloat(document.getElementById('sens').value);
+            cfg.iX = document.getElementById('invX').checked ? -1 : 1;
+            cfg.iY = document.getElementById('invY').checked ? -1 : 1;
+
             document.getElementById('loading-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
 
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x020508);
-            scene.fog = new THREE.Fog(0x020508, 30, 120);
+            scene.background = new THREE.Color(0x05080a);
+            scene.fog = new THREE.Fog(0x05080a, 20, 100);
 
             camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-            let sun = new THREE.DirectionalLight(0xffffff, 1.2);
-            sun.position.set(50, 100, 50);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            let sun = new THREE.DirectionalLight(0xffffff, 1.0);
+            sun.position.set(50, 80, 50);
             scene.add(sun);
 
-            generateMap();
+            buildWorld();
             createHero();
             setupControls();
-            log("Движок готов. Карта: 200x200");
+            log("Мир создан. Карта 300x300");
             animate();
         }
 
-        function generateMap() {
+        function buildWorld() {
             // Земля
-            let ground = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE), new THREE.MeshStandardMaterial({color: 0x151d15}));
+            let ground = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), new THREE.MeshStandardMaterial({color: 0x1a241a}));
             ground.rotation.x = -Math.PI/2;
             scene.add(ground);
 
-            // Река (теперь строго по центру)
-            let river = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE*1.5, 20), new THREE.MeshStandardMaterial({color: 0x003366, transparent: true, opacity: 0.8}));
+            // Река
+            let river = new THREE.Mesh(new THREE.PlaneGeometry(400, 25), new THREE.MeshStandardMaterial({color: 0x0984e3, transparent: true, opacity: 0.7}));
             river.rotation.x = -Math.PI/2; river.rotation.z = Math.PI/4;
             river.position.y = 0.1;
             scene.add(river);
 
-            // Стены и дороги
-            for(let i=0; i<40; i++) {
-                let x = (Math.random()-0.5)*MAP_SIZE;
-                let z = (Math.random()-0.5)*MAP_SIZE;
-                if(Math.abs(x+z) > 30) addRock(x, z);
-            }
+            // Базы
+            addStructure(-120, 120, 0x2980b9, "BASE"); 
+            addStructure(120, -120, 0xb71540, "BASE"); 
 
-            // ТРОНЫ (Убраны в углы)
-            addMainStructure(-85, 85, 0x00a2ff); // Синий трон
-            addMainStructure(85, -85, 0xff3300); // Красный трон
-
-            // Защитные башни на линиях
-            addTower(-40, 40, 0x00a2ff);
-            addTower(40, -40, 0xff3300);
-
-            // Трава
-            for(let i=0; i<150; i++) {
-                addGrass((Math.random()-0.5)*MAP_SIZE, (Math.random()-0.5)*MAP_SIZE);
+            // Стены и деревья
+            for(let i=0; i<60; i++) {
+                let rx = (Math.random()-0.5)*250, rz = (Math.random()-0.5)*250;
+                if(Math.abs(rx+rz) > 40) addRock(rx, rz);
             }
         }
 
-        function addRock(x, z) {
-            let h = 2 + Math.random()*4;
-            let m = new THREE.Mesh(new THREE.BoxGeometry(4, h, 4), new THREE.MeshStandardMaterial({color: 0x3d3d3d}));
-            m.position.set(x, h/2, z);
-            scene.add(m);
-            obstacles.push({x, z, r: 2.5});
-        }
-
-        function addMainStructure(x, z, col) {
+        function addStructure(x, z, col, type) {
             let g = new THREE.Group();
-            let base = new THREE.Mesh(new THREE.CylinderGeometry(6, 7, 4, 6), new THREE.MeshStandardMaterial({color: 0x222}));
-            g.add(base);
-            let crystal = new THREE.Mesh(new THREE.OctahedronGeometry(3), new THREE.MeshStandardMaterial({color: col, emissive: col, emissiveIntensity: 2}));
-            crystal.position.y = 6;
-            g.add(crystal);
-            g.position.set(x, 2, z);
+            let b = new THREE.Mesh(new THREE.CylinderGeometry(5, 7, 5, 6), new THREE.MeshStandardMaterial({color: 0x2d3436}));
+            g.add(b);
+            let top = new THREE.Mesh(new THREE.OctahedronGeometry(3), new THREE.MeshStandardMaterial({color: col, emissive: col}));
+            top.position.y = 6;
+            g.add(top);
+            g.position.set(x, 2.5, z);
             scene.add(g);
             obstacles.push({x, z, r: 7});
         }
 
-        function addTower(x, z, col) {
-            let t = new THREE.Mesh(new THREE.CylinderGeometry(2, 3, 10, 8), new THREE.MeshStandardMaterial({color: 0x444}));
-            t.position.set(x, 5, z);
-            let head = new THREE.Mesh(new THREE.SphereGeometry(1.5), new THREE.MeshStandardMaterial({color: col}));
-            head.position.y = 6;
-            t.add(head);
-            scene.add(t);
+        function addRock(x, z) {
+            let h = 2 + Math.random()*5;
+            let m = new THREE.Mesh(new THREE.BoxGeometry(4, h, 4), new THREE.MeshStandardMaterial({color: 0x3d3d3d}));
+            m.position.set(x, h/2, z);
+            scene.add(m);
             obstacles.push({x, z, r: 3});
-        }
-
-        function addGrass(x, z) {
-            let colors = [0x2ecc71, 0x27ae60, 0x16a085];
-            let g = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.5, 4), new THREE.MeshStandardMaterial({color: colors[Math.floor(Math.random()*3)]}));
-            g.position.set(x, 0.75, z);
-            scene.add(g);
         }
 
         function createHero() {
             player = new THREE.Group();
+            let pGeo;
+            try { pGeo = new THREE.CapsuleGeometry(0.6, 1.2, 4, 8); } 
+            catch(e) { pGeo = new THREE.CylinderGeometry(0.6, 0.6, 2, 8); log("FALLBACK: Cylinder hero"); }
             
-            // ТЕЛО
-            let body = new THREE.Mesh(new THREE.CapsuleGeometry(0.6, 1.2, 4, 8), new THREE.MeshStandardMaterial({color: 0x00d2ff}));
-            body.position.y = 1.2;
+            let body = new THREE.Mesh(pGeo, new THREE.MeshStandardMaterial({color: 0x00d2ff}));
+            body.position.y = 1;
             player.add(body);
 
-            // ГОЛОВА/ШЛЕМ
+            // Шлем и меч
             let head = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshStandardMaterial({color: 0xffffff}));
             head.position.y = 2.2;
             player.add(head);
-
-            // ОРУЖИЕ (Светящийся меч)
-            let sword = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.5, 0.2), new THREE.MeshStandardMaterial({color: 0xfff, emissive: 0x00d2ff}));
-            sword.position.set(0.8, 1.5, 0.5);
-            sword.rotation.x = 0.5;
+            let sword = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.5, 0.2), new THREE.MeshStandardMaterial({color: 0xffffff, emissive: 0x00d2ff}));
+            sword.position.set(0.8, 1.5, 0.4); sword.rotation.x = 0.5;
             player.add(sword);
 
-            // Эффект реколла (столб света)
-            let pGeo = new THREE.CylinderGeometry(1.5, 1.5, 20, 16, 1, true);
-            let pMat = new THREE.MeshBasicMaterial({color: 0x00f2ff, transparent: true, opacity: 0, side: THREE.DoubleSide});
-            recallPillar = new THREE.Mesh(pGeo, pMat);
-            recallPillar.position.y = 10;
-            player.add(recallPillar);
+            recallFx = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 15, 16, 1, true), new THREE.MeshBasicMaterial({color: 0x00ffff, transparent: true, opacity: 0, side: THREE.DoubleSide}));
+            recallFx.position.y = 7.5;
+            player.add(recallFx);
 
             scene.add(player);
-            player.position.set(-80, 0, 80); // Спавн у синего трона
+            player.position.set(-110, 0, 110);
         }
 
         function setupControls() {
-            const jb = document.getElementById('joy-base'), js = document.getElementById('joy-stick');
-            const handleMove = (e) => {
+            let jb = document.getElementById('joy-base'), js = document.getElementById('joy-stick');
+            let move = (e) => {
                 e.preventDefault();
-                const t = e.touches ? e.touches[0] : e;
-                const r = jb.getBoundingClientRect();
-                const dx = t.clientX - (r.left + 55), dy = t.clientY - (r.top + 55);
-                const d = Math.min(Math.sqrt(dx*dx+dy*dy), 45);
-                const a = Math.atan2(dy, dx);
+                let t = e.touches ? e.touches[0] : e;
+                let r = jb.getBoundingClientRect();
+                let dx = t.clientX - (r.left + 55), dy = t.clientY - (r.top + 55);
+                let d = Math.min(Math.sqrt(dx*dx+dy*dy), 45);
+                let a = Math.atan2(dy, dx);
                 js.style.transform = `translate(calc(-50% + ${Math.cos(a)*d}px), calc(-50% + ${Math.sin(a)*d}px))`;
                 joyX = Math.cos(a); joyZ = Math.sin(a); isMoving = true;
-                if(isRecalling) stopRecall();
+                if(isRecalling) cancelRecall();
             };
-            jb.addEventListener('touchstart', handleMove); jb.addEventListener('touchmove', handleMove);
+            jb.addEventListener('touchstart', move); jb.addEventListener('touchmove', move);
             window.addEventListener('touchend', () => { isMoving = false; joyX=0; joyZ=0; js.style.transform='translate(-50%,-50%)'; });
         }
 
-        window.startRecall = function(e) {
-            if(e) e.stopPropagation();
+        function doRecall() {
             if(isRecalling || isMoving) return;
-            log("Реколл запущен");
             isRecalling = true;
             document.getElementById('msg').style.display = 'block';
-            
+            recallFx.material.opacity = 0.3;
             let t = 5;
             document.getElementById('timer').innerText = t;
-            recallPillar.material.opacity = 0.3;
-
-            recallInterval = setInterval(() => {
+            recallInt = setInterval(() => {
                 t--; document.getElementById('timer').innerText = t;
-                if(t <= 0) {
-                    player.position.set(-80, 0, 80);
-                    stopRecall();
-                    log("Герой на базе");
-                }
+                if(t <= 0) { player.position.set(-110, 0, 110); cancelRecall(); }
             }, 1000);
-        };
-
-        function stopRecall() {
-            isRecalling = false;
-            clearInterval(recallInterval);
-            document.getElementById('msg').style.display = 'none';
-            recallPillar.material.opacity = 0;
+        }
+        function cancelRecall() { 
+            isRecalling = false; clearInterval(recallInt); 
+            document.getElementById('msg').style.display = 'none'; 
+            recallFx.material.opacity = 0;
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            
             if(isMoving && !isRecalling) {
-                let speed = 0.14; // Чуть меньше скорость
+                let speed = 0.13; // Слегка уменьшил скорость
                 let nX = player.position.x + joyX * speed;
                 let nZ = player.position.z + joyZ * speed;
-                
                 let hit = false;
                 for(let o of obstacles) {
-                    let d = Math.sqrt((nX-o.x)**2 + (nZ-o.z)**2);
-                    if(d < o.r + 0.8) hit = true;
+                    if(Math.sqrt((nX-o.x)**2 + (nZ-o.z)**2) < o.r + 0.8) hit = true;
                 }
-                
-                if(!hit && Math.abs(nX) < 98 && Math.abs(nZ) < 98) {
+                if(!hit && Math.abs(nX) < 145 && Math.abs(nZ) < 145) {
                     player.position.set(nX, 0, nZ);
                 }
                 player.rotation.y = Math.atan2(-joyX, -joyZ);
             }
-
-            if(isRecalling) {
-                recallPillar.rotation.y += 0.1;
-                recallPillar.scale.x = recallPillar.scale.z = 1 + Math.sin(Date.now()*0.01)*0.1;
-            }
+            if(isRecalling) recallFx.rotation.y += 0.1;
 
             camPan.x *= 0.9; camPan.z *= 0.9;
             camera.position.set(player.position.x + camPan.x, 22, player.position.z + 18 + camPan.z);
             camera.lookAt(player.position.x + camPan.x, 0, player.position.z + camPan.z);
-
             renderer.render(scene, camera);
         }
     </script>
