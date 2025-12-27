@@ -3,119 +3,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MLBB Modular Project</title>
+    <title>MLBB Mobile Arena</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #0c1a1a; touch-action: none; }
+        body { margin: 0; overflow: hidden; background: #050a05; touch-action: none; font-family: sans-serif; }
+        canvas { display: block; }
+        #ui { position: absolute; inset: 0; pointer-events: none; }
         #joy-container {
-            position: absolute; bottom: 30px; left: 30px;
-            width: 100px; height: 100px;
-            background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%;
+            position: absolute; bottom: 40px; left: 40px; width: 110px; height: 110px;
+            background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%; pointer-events: auto;
         }
         #joy-stick {
-            position: absolute; top: 50%; left: 50%;
-            width: 40px; height: 40px; background: rgba(255,255,255,0.5); border-radius: 50%;
-            transform: translate(-50%, -50%);
+            position: absolute; top: 50%; left: 50%; width: 45px; height: 45px;
+            background: #fff; opacity: 0.5; border-radius: 50%; transform: translate(-50%, -50%);
         }
     </style>
 </head>
 <body>
-    <div id="joy-container"><div id="joy-stick"></div></div>
 
-    <script type="module">
-        import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
-        import { Hero } from './Hero.js';
+    <div id="ui">
+        <div id="joy-container"><div id="joy-stick"></div></div>
+    </div>
 
-        let scene, camera, renderer, hero;
-        let moveX = 0, moveZ = 0, isMoving = false;
-        let obstacles = [];
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- КЛАСС ГЕРОЯ (АРХИТЕКТУРА ПЕРСОНАЖА) ---
+        class Hero {
+            constructor(scene, color) {
+                this.group = new THREE.Group();
+                
+                // Тело (Торс)
+                const body = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.8, 1, 0.6),
+                    new THREE.MeshStandardMaterial({ color: color })
+                );
+                body.position.y = 1.2;
+                this.group.add(body);
+
+                // Голова с "глазом"
+                const head = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.5, 0.4, 0.5),
+                    new THREE.MeshStandardMaterial({ color: 0x333333 })
+                );
+                head.position.y = 2.0;
+                this.group.add(head);
+
+                const eye = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.3, 0.1, 0.1),
+                    new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff })
+                );
+                eye.position.set(0, 2.0, 0.25);
+                this.group.add(eye);
+
+                // Ноги
+                const legGeo = new THREE.BoxGeometry(0.3, 0.8, 0.3);
+                const legL = new THREE.Mesh(legGeo, new THREE.MeshStandardMaterial({ color: 0x222222 }));
+                legL.position.set(0.2, 0.4, 0);
+                const legR = legL.clone();
+                legR.position.set(-0.2, 0.4, 0);
+                this.group.add(legL, legR);
+
+                scene.add(this.group);
+                
+                this.radius = 0.7; // Радиус для коллизий
+                this.speed = 0.07; // Умеренная скорость
+            }
+
+            update(mx, mz, obstacles) {
+                let nextX = this.group.position.x + mx * this.speed;
+                let nextZ = this.group.position.z + mz * this.speed;
+
+                // Проверка коллизий
+                let collision = false;
+                for (let obj of obstacles) {
+                    const dx = nextX - obj.position.x;
+                    const dz = nextZ - obj.position.z;
+                    const distance = Math.sqrt(dx*dx + dz*dz);
+                    
+                    // Сумма радиусов (герой + примерный радиус постройки)
+                    const minAllowedDist = this.radius + (obj.userData.radius || 1.5);
+                    
+                    if (distance < minAllowedDist) {
+                        collision = true;
+                        break;
+                    }
+                }
+
+                if (!collision) {
+                    this.group.position.x = nextX;
+                    this.group.position.z = nextZ;
+                }
+
+                // Плавный поворот в сторону движения
+                const targetAngle = Math.atan2(mx, mz);
+                this.group.rotation.y = targetAngle;
+            }
+        }
+
+        // --- ГЛАВНЫЙ ДВИЖОК ИГРЫ ---
+        let scene, camera, renderer, player, obstacles = [];
+        let joyX = 0, joyZ = 0, isMoving = false;
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1a2a2a);
-            scene.fog = new THREE.Fog(0x1a2a2a, 30, 100);
+            scene.background = new THREE.Color(0x0a150a);
+            scene.fog = new THREE.Fog(0x0a150a, 20, 100);
 
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
             
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-            sun.position.set(20, 50, 10);
+            // Освещение
+            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+            const sun = new THREE.DirectionalLight(0xffffff, 1);
+            sun.position.set(10, 20, 15);
             scene.add(sun);
 
             // Земля
             const ground = new THREE.Mesh(
                 new THREE.PlaneGeometry(200, 200),
-                new THREE.MeshStandardMaterial({ color: 0x1d331d })
+                new THREE.MeshStandardMaterial({ color: 0x1a2b1a })
             );
             ground.rotation.x = -Math.PI / 2;
             scene.add(ground);
 
-            // Создаем постройки (Препятствия)
-            createObstacle(new THREE.CylinderGeometry(2, 2, 8, 12), 0x666666, {x: -15, z: -15}); // Башня
-            createObstacle(new THREE.BoxGeometry(4, 4, 4), 0x4a3a2a, {x: 10, z: -5}); // Большой камень
-            createObstacle(new THREE.BoxGeometry(3, 5, 3), 0x4a3a2a, {x: -5, z: 15}); // Корень
+            const grid = new THREE.GridHelper(200, 50, 0x223322, 0x112211);
+            scene.add(grid);
 
-            // Инициализация ГЕРОЯ из модуля
-            hero = new Hero(scene, 0x00aaff);
+            // Создание объектов с коллизией
+            addBuilding(-15, -10, 3, 8, 0x555555, "Tower");
+            addBuilding(10, 5, 4, 4, 0x3d2b1f, "Rock");
+            addBuilding(-5, 12, 2, 6, 0x3d2b1f, "Pillar");
+
+            // Игрок
+            player = new Hero(scene, 0x0088ff);
 
             setupJoystick();
             animate();
         }
 
-        function createObstacle(geo, color, pos) {
-            const mat = new THREE.MeshStandardMaterial({ color: color });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(pos.x, geo.parameters.height / 2 || 2, pos.z);
+        function addBuilding(x, z, w, h, color, type) {
+            const mesh = new THREE.Mesh(
+                type === "Tower" ? new THREE.CylinderGeometry(w, w, h, 16) : new THREE.BoxGeometry(w, h, w),
+                new THREE.MeshStandardMaterial({ color: color })
+            );
+            mesh.position.set(x, h/2, z);
+            mesh.userData.radius = w / 1.5; // Записываем радиус объекта для коллизий
             scene.add(mesh);
-            obstacles.push(mesh); // Добавляем в список для коллизий
+            obstacles.push(mesh);
         }
 
         function setupJoystick() {
             const container = document.getElementById('joy-container');
             const stick = document.getElementById('joy-stick');
 
-            const handleMove = (e) => {
+            const move = (e) => {
                 e.preventDefault();
                 const touch = e.touches[0];
                 const rect = container.getBoundingClientRect();
-                const dx = touch.clientX - (rect.left + 50);
-                const dy = touch.clientY - (rect.top + 50);
-                const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 40);
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const dx = touch.clientX - cx;
+                const dy = touch.clientY - cy;
+                const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 45);
                 const angle = Math.atan2(dy, dx);
-                
+
                 stick.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
-                moveX = Math.cos(angle);
-                moveZ = Math.sin(angle);
+                joyX = Math.cos(angle);
+                joyZ = Math.sin(angle);
                 isMoving = true;
             };
 
-            container.addEventListener('touchstart', handleMove, {passive: false});
-            container.addEventListener('touchmove', handleMove, {passive: false});
+            container.addEventListener('touchstart', (e) => { isMoving = true; move(e); }, {passive: false});
+            container.addEventListener('touchmove', move, {passive: false});
             container.addEventListener('touchend', () => {
                 isMoving = false;
-                moveX = 0; moveZ = 0;
+                joyX = 0; joyZ = 0;
                 stick.style.transform = 'translate(-50%, -50%)';
             });
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            
+
             if (isMoving) {
-                hero.update(moveX, moveZ, obstacles);
+                player.update(joyX, joyZ, obstacles);
             }
 
-            // Камера следит за героем
-            camera.position.set(hero.group.position.x, 15, hero.group.position.z + 12);
-            camera.lookAt(hero.group.position);
+            // Камера следит за героем (MLBB вид)
+            camera.position.set(player.group.position.x, 18, player.group.position.z + 14);
+            camera.lookAt(player.group.position.x, 1, player.group.position.z);
 
             renderer.render(scene, camera);
         }
 
         init();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
