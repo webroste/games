@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mobile Minecraft JS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body { margin: 0; overflow: hidden; background: #87CEEB; touch-action: none; }
+        canvas { display: block; }
+        
+        /* Прицел */
+        #crosshair {
+            position: absolute; top: 50%; left: 50%;
+            width: 20px; height: 20px; color: white;
+            transform: translate(-50%, -50%); font: 24px Arial;
+            pointer-events: none;
+        }
+
+        /* Стили джойстика */
+        #joystick-wrapper {
+            position: absolute; bottom: 50px; left: 50px;
+            width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%; touch-action: none;
+        }
+        #joystick-stick {
+            position: absolute; top: 50%; left: 50%;
+            width: 50px; height: 50px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%; transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body>
+    <div id="crosshair">+</div>
+    <div id="joystick-wrapper">
+        <div id="joystick-stick"></div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
+
+        // --- НАСТРОЙКИ СЦЕНЫ ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // Свет
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+        sun.position.set(5, 10, 7.5);
+        scene.add(sun);
+
+        // --- МИР (БЛОКИ) ---
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshStandardMaterial({ color: 0x3d9941 });
+        for(let x = -10; x < 10; x++) {
+            for(let z = -10; z < 10; z++) {
+                const cube = new THREE.Mesh(geometry, material);
+                cube.position.set(x, 0, z);
+                scene.add(cube);
+            }
+        }
+        camera.position.y = 2;
+
+        // --- ЛОГИКА ДЖОЙСТИКА ---
+        const stick = document.getElementById('joystick-stick');
+        const wrapper = document.getElementById('joystick-wrapper');
+        let moveX = 0, moveZ = 0;
+        let isMoving = false;
+
+        wrapper.addEventListener('touchstart', (e) => { isMoving = true; });
+        document.addEventListener('touchmove', (e) => {
+            if (!isMoving) return;
+            const touch = e.touches[0];
+            const rect = wrapper.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            let diffX = touch.clientX - centerX;
+            let diffY = touch.clientY - centerY;
+            const distance = Math.min(Math.sqrt(diffX*diffX + diffY*diffY), 60);
+            const angle = Math.atan2(diffY, diffX);
+
+            const x = Math.cos(angle) * distance;
+            const y = Math.sin(angle) * distance;
+
+            stick.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+            
+            // Нормализация для движения
+            moveX = x / 60;
+            moveZ = y / 60;
+        });
+        document.addEventListener('touchend', () => {
+            isMoving = false;
+            stick.style.transform = 'translate(-50%, -50%)';
+            moveX = 0; moveZ = 0;
+        });
+
+        // --- ВРАЩЕНИЕ КАМЕРЫ ПАЛЬЦЕМ ---
+        let lon = 0, lat = 0;
+        let startX, startY;
+        document.addEventListener('touchstart', (e) => {
+            if (e.target.id === 'joystick-wrapper' || e.target.id === 'joystick-stick') return;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        });
+        document.addEventListener('touchmove', (e) => {
+            if (isMoving && e.touches.length === 1) return; 
+            const touch = e.touches[e.touches.length - 1];
+            const dx = touch.clientX - startX;
+            const dy = touch.clientY - startY;
+            startX = touch.clientX;
+            startY = touch.clientY;
+
+            lon -= dx * 0.3;
+            lat = Math.max(-85, Math.min(85, lat + dy * 0.3));
+        });
+
+        // --- ОБНОВЛЕНИЕ КАДРА ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Движение
+            const speed = 0.1;
+            const angle = camera.rotation.y;
+            // Рассчитываем движение относительно взгляда камеры
+            camera.position.x += (Math.cos(angle) * moveX + Math.sin(angle) * moveZ) * speed;
+            camera.position.z += (Math.sin(angle) * -moveX + Math.cos(angle) * moveZ) * speed;
+
+            // Вращение
+            camera.rotation.order = "YXZ";
+            camera.rotation.y = lon * Math.PI / 180;
+            camera.rotation.x = lat * Math.PI / 180;
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Адаптация под размер экрана
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
