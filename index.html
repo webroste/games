@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MLBB Forest Arena</title>
+    <title>MLBB Modular Project</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #0c1a1a; touch-action: none; color: white; }
-        #error-log { position: absolute; top: 10px; left: 10px; color: red; font-size: 12px; z-index: 1000; pointer-events: none; }
-        
+        body { margin: 0; overflow: hidden; background: #0c1a1a; touch-action: none; }
         #joy-container {
             position: absolute; bottom: 30px; left: 30px;
             width: 100px; height: 100px;
@@ -21,111 +19,81 @@
     </style>
 </head>
 <body>
-    <div id="error-log"></div>
     <div id="joy-container"><div id="joy-stick"></div></div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-    <script>
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            const errorLog = document.getElementById('error-log');
-            errorLog.innerHTML += `Ошибка: ${msg}<br>Строка: ${lineNo}<br>Файл: ${url}<br>`;
-            return true; // Предотвратить дальнейшее всплытие ошибки
-        };
+    <script type="module">
+        import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
+        import { Hero } from './Hero.js';
 
         let scene, camera, renderer, hero;
         let moveX = 0, moveZ = 0, isMoving = false;
-        const heroSpeed = 0.08; // Уменьшенная скорость героя
+        let obstacles = [];
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1a2a2a); // Темно-бирюзовый фон (туман)
-            scene.fog = new THREE.Fog(0x1a2a2a, 50, 150); // Туман для глубины
+            scene.background = new THREE.Color(0x1a2a2a);
+            scene.fog = new THREE.Fog(0x1a2a2a, 30, 100);
 
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 12); 
-
+            
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
             document.body.appendChild(renderer.domElement);
 
-            // --- ОСВЕЩЕНИЕ ---
-            scene.add(new THREE.AmbientLight(0xffffff, 0.5)); // Общее мягкое освещение
-            const dirLight = new THREE.DirectionalLight(0xcceeff, 0.8); // Холодный свет (лунный/утренний)
-            dirLight.position.set(20, 50, 30);
-            scene.add(dirLight);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(20, 50, 10);
+            scene.add(sun);
 
-            // --- ПЛАТФОРМА И КАРТА ---
-            // Основная земля (трава)
-            const groundMat = new THREE.MeshStandardMaterial({ color: 0x2e4a2e }); // Темно-зеленый мох
-            const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), groundMat);
+            // Земля
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(200, 200),
+                new THREE.MeshStandardMaterial({ color: 0x1d331d })
+            );
             ground.rotation.x = -Math.PI / 2;
             scene.add(ground);
 
-            // Сетка для навигации
-            const grid = new THREE.GridHelper(200, 40, 0x4a6a4a, 0x3a5a3a); // Сетка в цвет травы
-            scene.add(grid);
+            // Создаем постройки (Препятствия)
+            createObstacle(new THREE.CylinderGeometry(2, 2, 8, 12), 0x666666, {x: -15, z: -15}); // Башня
+            createObstacle(new THREE.BoxGeometry(4, 4, 4), 0x4a3a2a, {x: 10, z: -5}); // Большой камень
+            createObstacle(new THREE.BoxGeometry(3, 5, 3), 0x4a3a2a, {x: -5, z: 15}); // Корень
 
-            // --- ДЕКОРАЦИИ КАРТЫ (Постройки и препятствия) ---
-
-            // 1. Прототип Башни (Твоя база)
-            const towerGeo = new THREE.CylinderGeometry(3, 4, 8, 8);
-            const towerMat = new THREE.MeshStandardMaterial({ color: 0x666666 }); // Каменная текстура
-            const tower = new THREE.Mesh(towerGeo, towerMat);
-            tower.position.set(-30, 4, -30); // Позиция башни
-            scene.add(tower);
-
-            // 2. Кусты/Корни (Простые препятствия)
-            const bushMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a }); // Цвет дерева/корней
-            const numBushes = 10;
-            for (let i = 0; i < numBushes; i++) {
-                const bushGeo = new THREE.BoxGeometry(THREE.MathUtils.randFloat(2, 5), THREE.MathUtils.randFloat(1, 3), THREE.MathUtils.randFloat(2, 5));
-                const bush = new THREE.Mesh(bushGeo, bushMat);
-                bush.position.set(
-                    THREE.MathUtils.randFloatSpread(80), // Случайное X от -40 до 40
-                    bush.geometry.parameters.height / 2, // На земле
-                    THREE.MathUtils.randFloatSpread(80)  // Случайное Z от -40 до 40
-                );
-                scene.add(bush);
-            }
-
-            // --- ГЕРОЙ ---
-            const heroGeo = new THREE.SphereGeometry(0.8, 20, 20); // Сделаем чуть крупнее
-            const heroMat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-            hero = new THREE.Mesh(heroGeo, heroMat);
-            hero.position.y = heroGeo.parameters.radius; // Установим на землю
-            scene.add(hero);
+            // Инициализация ГЕРОЯ из модуля
+            hero = new Hero(scene, 0x00aaff);
 
             setupJoystick();
             animate();
+        }
+
+        function createObstacle(geo, color, pos) {
+            const mat = new THREE.MeshStandardMaterial({ color: color });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(pos.x, geo.parameters.height / 2 || 2, pos.z);
+            scene.add(mesh);
+            obstacles.push(mesh); // Добавляем в список для коллизий
         }
 
         function setupJoystick() {
             const container = document.getElementById('joy-container');
             const stick = document.getElementById('joy-stick');
 
-            const updateJoystick = (e) => {
+            const handleMove = (e) => {
                 e.preventDefault();
                 const touch = e.touches[0];
                 const rect = container.getBoundingClientRect();
-                const cx = rect.left + rect.width / 2;
-                const cy = rect.top + rect.height / 2;
-                
-                const dx = touch.clientX - cx;
-                const dy = touch.clientY - cy;
-                const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 40); // Макс. дистанция для стика
+                const dx = touch.clientX - (rect.left + 50);
+                const dy = touch.clientY - (rect.top + 50);
+                const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 40);
                 const angle = Math.atan2(dy, dx);
-
-                stick.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
                 
-                moveX = Math.cos(angle) * (dist / 40);
-                moveZ = Math.sin(angle) * (dist / 40);
+                stick.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
+                moveX = Math.cos(angle);
+                moveZ = Math.sin(angle);
                 isMoving = true;
             };
 
-            container.addEventListener('touchstart', updateJoystick, {passive: false});
-            container.addEventListener('touchmove', updateJoystick, {passive: false});
+            container.addEventListener('touchstart', handleMove, {passive: false});
+            container.addEventListener('touchmove', handleMove, {passive: false});
             container.addEventListener('touchend', () => {
                 isMoving = false;
                 moveX = 0; moveZ = 0;
@@ -135,35 +103,19 @@
 
         function animate() {
             requestAnimationFrame(animate);
-
+            
             if (isMoving) {
-                hero.position.x += moveX * heroSpeed;
-                hero.position.z += moveZ * heroSpeed;
-
-                // Ограничиваем героя границами карты
-                const mapBoundary = 95; // Граница карты - 100/2 - 5 единиц от края
-                hero.position.x = Math.max(-mapBoundary, Math.min(mapBoundary, hero.position.x));
-                hero.position.z = Math.max(-mapBoundary, Math.min(mapBoundary, hero.position.z));
-                
-                // Поворот героя
-                hero.rotation.y = -Math.atan2(moveZ, moveX) + Math.PI / 2;
+                hero.update(moveX, moveZ, obstacles);
             }
 
-            // Камера следит за героем (MLBB-стиль)
-            camera.position.x = hero.position.x;
-            camera.position.z = hero.position.z + 12; // Отдаление по Z
-            camera.lookAt(hero.position.x, hero.position.y, hero.position.z);
+            // Камера следит за героем
+            camera.position.set(hero.group.position.x, 15, hero.group.position.z + 12);
+            camera.lookAt(hero.group.position);
 
             renderer.render(scene, camera);
         }
 
-        init(); // Запускаем игру
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        init();
     </script>
 </body>
 </html>
