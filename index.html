@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MLBB Stable Build</title>
+    <title>MLBB Fixed</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: 'Segoe UI', sans-serif; user-select: none; }
         
-        /* Лог ошибок (на всякий случай) */
+        /* Лог ошибок */
         #debug-console {
             position: absolute; top: 0; left: 0; width: 100%; color: red; 
             background: rgba(0,0,0,0.5); font-size: 12px; pointer-events: none; z-index: 9999;
         }
 
-        /* ЭКРАНЫ */
         .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         
-        /* МЕНЮ (Градиент вместо картинки) */
+        /* МЕНЮ */
         #menu-screen { 
             background: radial-gradient(circle at center, #1a2a3a 0%, #000000 100%);
             z-index: 200; 
@@ -32,10 +31,9 @@
         }
         .btn:active { transform: scale(0.95); }
 
-        /* ИГРОВОЙ ИНТЕРФЕЙС (Скрыт по умолчанию) */
+        /* ИГРА */
         #game-ui { display: none; pointer-events: none; z-index: 100; }
         
-        /* Мини-карта */
         #minimap {
             position: absolute; top: 15px; left: 15px;
             width: 120px; height: 120px;
@@ -44,7 +42,6 @@
             overflow: hidden; pointer-events: none;
         }
 
-        /* Джойстик */
         #joy-container {
             position: absolute; bottom: 50px; left: 50px; width: 120px; height: 120px;
             background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%;
@@ -55,7 +52,6 @@
             background: rgba(255,255,255,0.8); border-radius: 50%; transform: translate(-50%, -50%);
         }
 
-        /* Кнопки справа */
         #actions { position: absolute; bottom: 50px; right: 50px; pointer-events: auto; display: flex; gap: 20px; align-items: flex-end; }
         .skill-btn {
             width: 60px; height: 60px; border-radius: 50%; border: 3px solid #ccc;
@@ -65,7 +61,6 @@
         #recall-btn { background: #4b0082; border-color: #9370db; }
         #attack-btn { width: 90px; height: 90px; background: #8b0000; border-color: #ff4500; font-size: 30px; }
 
-        /* Сообщение */
         #msg { position: absolute; bottom: 180px; width: 100%; text-align: center; color: cyan; font-size: 24px; font-weight: bold; display: none; text-shadow: 2px 2px 0 #000;}
     </style>
 </head>
@@ -74,28 +69,24 @@
     <div id="debug-console"></div>
 
     <div id="menu-screen" class="screen">
-        <h1>MOBA LEGENDS<br><span style="font-size:16px; color:#aaa;">Mobile Build</span></h1>
+        <h1>MOBA LEGENDS<br><span style="font-size:16px; color:#aaa;">Fixed Version</span></h1>
         <button class="btn" onclick="tryStartGame()">ИГРАТЬ</button>
     </div>
 
     <div id="game-ui" class="screen">
         <div id="minimap"></div>
         <div id="joy-container"><div id="joy-stick"></div></div>
-        
         <div id="msg">ВОЗВРАЩЕНИЕ... <span id="timer">5</span></div>
-
         <div id="actions">
             <div id="recall-btn" class="skill-btn" ontouchstart="startRecall(event)">🏠</div>
             <div id="attack-btn" class="skill-btn" ontouchstart="doAttack(event)">⚔️</div>
         </div>
-        
         <div id="cam-zone" style="position: absolute; right: 0; top: 0; width: 50%; height: 100%; pointer-events: auto;"></div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r146/three.min.js"></script>
 
     <script>
-        // --- ОТЛОВ ОШИБОК ---
         window.onerror = function(msg, url, line) {
             document.getElementById('debug-console').innerHTML += `ERR: ${msg} (Line ${line})<br>`;
         };
@@ -104,7 +95,6 @@
         let isMoving = false, joyX = 0, joyZ = 0;
         let isRecalling = false;
         
-        // Камера
         let camOffset = {x:0, y:18, z:14};
         let camPan = {x:0, z:0};
 
@@ -122,23 +112,19 @@
         }
 
         function initGame() {
-            // 1. Сцена
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0b1116);
             scene.fog = new THREE.Fog(0x0b1116, 20, 80);
 
-            // 2. Камера
             camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
 
-            // 3. Рендер
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Оптимизация для мобилок
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             document.body.appendChild(renderer.domElement);
 
-            // 4. Свет
             scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            const sun = new THREE.DirectionalLight(0xffffff, 1); // Чуть ярче для новой версии
             sun.position.set(20, 40, 20);
             scene.add(sun);
 
@@ -150,25 +136,21 @@
         }
 
         function createMap() {
-            // Земля
             const ground = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE), new THREE.MeshStandardMaterial({ color: 0x152515 }));
             ground.rotation.x = -Math.PI/2;
             scene.add(ground);
 
-            // Река
             const river = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE*1.5, 8), new THREE.MeshStandardMaterial({ color: 0x224466 }));
             river.rotation.x = -Math.PI/2; river.rotation.z = -Math.PI/4; river.position.y = 0.05;
             scene.add(river);
 
-            // Объекты
-            addObj(-40, 40, 5, 8, 0x004488, "Base"); // Синие
-            addObj(40, -40, 5, 8, 0x880000, "Base"); // Красные
+            addObj(-40, 40, 5, 8, 0x004488, "Base"); 
+            addObj(40, -40, 5, 8, 0x880000, "Base"); 
             
-            // Лес
             for(let i=0; i<60; i++) {
                 let rx = (Math.random()-0.5)*80;
                 let rz = (Math.random()-0.5)*80;
-                if (Math.abs(rx+rz) > 15) { // Не на линии
+                if (Math.abs(rx+rz) > 15) { 
                     addObj(rx, rz, 1.5, Math.random()*4+3, 0x0b1a0b, "Tree");
                 }
             }
@@ -182,7 +164,6 @@
             scene.add(mesh);
             obstacles.push(mesh);
 
-            // Точка на карте
             if (type === "Base") {
                 const dot = document.createElement('div');
                 dot.style.cssText = `position:absolute; width:6px; height:6px; background:gold; border-radius:50%;`;
@@ -195,17 +176,15 @@
         function createPlayer() {
             player = new THREE.Group();
             
-            // Тело
+            // ТЕПЕРЬ ЭТО БУДЕТ РАБОТАТЬ (Версия 146 поддерживает CapsuleGeometry)
             const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 1, 4, 8), new THREE.MeshStandardMaterial({ color: 0x0088ff }));
             body.position.y = 0.9;
             player.add(body);
             
-            // Кольцо
             const ring = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.7, 32), new THREE.MeshBasicMaterial({ color: 0x00ff00, side: 2 }));
             ring.rotation.x = -Math.PI/2; ring.position.y = 0.05;
             player.add(ring);
 
-            // Точка игрока на миникарте
             const dot = document.createElement('div');
             dot.id = 'p-dot';
             dot.style.cssText = `position:absolute; width:5px; height:5px; background:#0f0; border-radius:50%; box-shadow:0 0 4px #0f0;`;
@@ -215,9 +194,7 @@
             player.position.set(SPAWN.x, 0, SPAWN.z);
         }
 
-        // --- УПРАВЛЕНИЕ ---
         function setupControls() {
-            // Джойстик
             const zone = document.getElementById('joy-container');
             const stick = document.getElementById('joy-stick');
             
@@ -233,7 +210,7 @@
                 stick.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
                 joyX = Math.cos(angle); joyZ = Math.sin(angle);
                 isMoving = true;
-                if(isRecalling) stopRecall(); // Сбить рекол
+                if(isRecalling) stopRecall(); 
             };
 
             zone.addEventListener('touchstart', handleJoy, {passive:false});
@@ -243,17 +220,15 @@
                 stick.style.transform = `translate(-50%, -50%)`;
             });
 
-            // Камера (Свайп справа)
             const camZone = document.getElementById('cam-zone');
-            let startX = 0, startY = 0;
-            camZone.addEventListener('touchstart', e => { startX=e.touches[0].clientX; startY=e.touches[0].clientY; }, {passive:false});
+            let startX = 0;
+            camZone.addEventListener('touchstart', e => { startX=e.touches[0].clientX; }, {passive:false});
             camZone.addEventListener('touchmove', e => {
                 e.preventDefault();
                 const dx = e.touches[0].clientX - startX;
-                const dy = e.touches[0].clientY - startY;
                 camPan.x += dx * 0.05;
-                camPan.z += dy * 0.05;
-                startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+                camPan.z += dx * 0.02; // Небольшой поворот
+                startX=e.touches[0].clientX;
             }, {passive:false});
         }
 
@@ -286,7 +261,6 @@
 
         window.doAttack = (e) => {
             e.preventDefault();
-            // Простая анимация увеличения
             player.children[0].scale.set(1.2, 1.2, 1.2);
             setTimeout(() => player.children[0].scale.set(1,1,1), 100);
         };
@@ -299,7 +273,6 @@
                 let nextX = player.position.x + joyX * speed;
                 let nextZ = player.position.z + joyZ * speed;
 
-                // Коллизия (простая)
                 let hit = false;
                 for(let o of obstacles) {
                     const d = Math.sqrt((nextX-o.position.x)**2 + (nextZ-o.position.z)**2);
@@ -314,14 +287,12 @@
                 player.rotation.y = Math.atan2(joyX, joyZ);
             }
 
-            // Возврат камеры
             if(!isMoving) { camPan.x *= 0.9; camPan.z *= 0.9; }
             else { camPan.x *= 0.8; camPan.z *= 0.8; }
 
             camera.position.set(player.position.x + camPan.x, camOffset.y, player.position.z + camOffset.z + camPan.z);
             camera.lookAt(player.position.x + camPan.x, 0, player.position.z + camPan.z);
 
-            // Обновление миникарты
             const pDot = document.getElementById('p-dot');
             if(pDot) {
                 pDot.style.left = ((player.position.x+MAP_SIZE/2)/MAP_SIZE)*120 + 'px';
