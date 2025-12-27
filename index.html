@@ -1,37 +1,51 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Mobile Minecraft JS</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8">
+    <title>Mobile Minecraft Clone</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <style>
-        body { margin: 0; overflow: hidden; background: #87CEEB; touch-action: none; }
+        body { margin: 0; overflow: hidden; background: #87CEEB; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
-        
+
+        /* Заглушка для поворота экрана */
+        #rotate-overlay {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #1a1a1a; color: white; z-index: 9999;
+            flex-direction: column; justify-content: center; align-items: center;
+        }
+        @media (orientation: portrait) { #rotate-overlay { display: flex; } }
+
         /* Прицел */
         #crosshair {
-            position: absolute; top: 50%; left: 50%;
-            width: 20px; height: 20px; color: white;
-            transform: translate(-50%, -50%); font: 24px Arial;
-            pointer-events: none;
+            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px;
+            color: white; transform: translate(-50%, -50%); font: 24px Arial;
+            pointer-events: none; opacity: 0.8;
         }
 
-        /* Стили джойстика */
+        /* Джойстик */
         #joystick-wrapper {
-            position: absolute; bottom: 50px; left: 50px;
-            width: 120px; height: 120px;
-            background: rgba(255, 255, 255, 0.2);
+            position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.2);
             border-radius: 50%; touch-action: none;
         }
         #joystick-stick {
-            position: absolute; top: 50%; left: 50%;
-            width: 50px; height: 50px;
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 50%; transform: translate(-50%, -50%);
+            position: absolute; top: 50%; left: 50%; width: 50px; height: 50px;
+            background: rgba(255, 255, 255, 0.4); border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none;
         }
     </style>
 </head>
 <body>
+
+    <div id="rotate-overlay">
+        <div style="font-size: 40px; margin-bottom: 10px;">🔄</div>
+        <div>Поверни телефон горизонтально</div>
+    </div>
+
     <div id="crosshair">+</div>
+
     <div id="joystick-wrapper">
         <div id="joystick-stick"></div>
     </div>
@@ -39,113 +53,118 @@
     <script type="module">
         import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
 
-        // --- НАСТРОЙКИ СЦЕНЫ ---
+        // --- 1. НАСТРОЙКА МИРА ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        // Свет
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const light = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(light);
         const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-        sun.position.set(5, 10, 7.5);
+        sun.position.set(10, 20, 10);
         scene.add(sun);
 
-        // --- МИР (БЛОКИ) ---
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const material = new THREE.MeshStandardMaterial({ color: 0x3d9941 });
-        for(let x = -10; x < 10; x++) {
-            for(let z = -10; z < 10; z++) {
-                const cube = new THREE.Mesh(geometry, material);
-                cube.position.set(x, 0, z);
-                scene.add(cube);
+        // Генерация пола
+        const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+        const grassMat = new THREE.MeshStandardMaterial({ color: 0x4caf50 });
+        for(let x = -15; x < 15; x++) {
+            for(let z = -15; z < 15; z++) {
+                const block = new THREE.Mesh(boxGeo, grassMat);
+                block.position.set(x, 0, z);
+                scene.add(block);
             }
         }
         camera.position.y = 2;
 
-        // --- ЛОГИКА ДЖОЙСТИКА ---
+        // --- 2. УПРАВЛЕНИЕ (ДЖОЙСТИК) ---
         const stick = document.getElementById('joystick-stick');
         const wrapper = document.getElementById('joystick-wrapper');
-        let moveX = 0, moveZ = 0;
-        let isMoving = false;
+        let moveX = 0, moveZ = 0, isMoving = false;
 
-        wrapper.addEventListener('touchstart', (e) => { isMoving = true; });
+        wrapper.addEventListener('touchstart', (e) => { 
+            isMoving = true; 
+            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+        });
+
         document.addEventListener('touchmove', (e) => {
             if (!isMoving) return;
-            const touch = e.touches[0];
+            const touch = Array.from(e.touches).find(t => t.target === wrapper || wrapper.contains(t.target));
+            if (!touch) return;
+
             const rect = wrapper.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
             
-            let diffX = touch.clientX - centerX;
-            let diffY = touch.clientY - centerY;
-            const distance = Math.min(Math.sqrt(diffX*diffX + diffY*diffY), 60);
-            const angle = Math.atan2(diffY, diffX);
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
+            const angle = Math.atan2(dy, dx);
 
-            const x = Math.cos(angle) * distance;
-            const y = Math.sin(angle) * distance;
-
-            stick.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+            stick.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
             
-            // Нормализация для движения
-            moveX = x / 60;
-            moveZ = y / 60;
+            moveX = (Math.cos(angle) * dist) / 50;
+            moveZ = (Math.sin(angle) * dist) / 50;
         });
+
         document.addEventListener('touchend', () => {
             isMoving = false;
             stick.style.transform = 'translate(-50%, -50%)';
             moveX = 0; moveZ = 0;
         });
 
-        // --- ВРАЩЕНИЕ КАМЕРЫ ПАЛЬЦЕМ ---
+        // --- 3. ВРАЩЕНИЕ КАМЕРЫ ---
         let lon = 0, lat = 0;
         let startX, startY;
+        
         document.addEventListener('touchstart', (e) => {
-            if (e.target.id === 'joystick-wrapper' || e.target.id === 'joystick-stick') return;
+            if (e.target.id === 'joystick-wrapper') return;
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
         });
+
         document.addEventListener('touchmove', (e) => {
-            if (isMoving && e.touches.length === 1) return; 
             const touch = e.touches[e.touches.length - 1];
+            if (touch.clientX < 200 && touch.clientY > window.innerHeight - 200) return; // Игнорим зону джойстика
+
             const dx = touch.clientX - startX;
             const dy = touch.clientY - startY;
             startX = touch.clientX;
             startY = touch.clientY;
 
-            lon -= dx * 0.3;
-            lat = Math.max(-85, Math.min(85, lat + dy * 0.3));
+            lon -= dx * 0.2;
+            lat = Math.max(-85, Math.min(85, lat + dy * 0.2));
         });
 
-        // --- ОБНОВЛЕНИЕ КАДРА ---
+        // --- 4. ЦИКЛ ИГРЫ ---
         function animate() {
             requestAnimationFrame(animate);
 
-            // Движение
-            const speed = 0.1;
-            const angle = camera.rotation.y;
-            // Рассчитываем движение относительно взгляда камеры
-            camera.position.x += (Math.cos(angle) * moveX + Math.sin(angle) * moveZ) * speed;
-            camera.position.z += (Math.sin(angle) * -moveX + Math.cos(angle) * moveZ) * speed;
+            if (moveX !== 0 || moveZ !== 0) {
+                const speed = 0.12;
+                const yaw = camera.rotation.y;
+                // Движение вперед/назад и влево/вправо относительно взгляда
+                camera.position.x += (Math.cos(yaw) * moveX + Math.sin(yaw) * moveZ) * speed;
+                camera.position.z += (Math.sin(yaw) * -moveX + Math.cos(yaw) * moveZ) * speed;
+            }
 
-            // Вращение
             camera.rotation.order = "YXZ";
             camera.rotation.y = lon * Math.PI / 180;
             camera.rotation.x = lat * Math.PI / 180;
 
             renderer.render(scene, camera);
         }
-        animate();
 
-        // Адаптация под размер экрана
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
+        animate();
     </script>
 </body>
 </html>
