@@ -3,54 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MLBB: Ultra Edition</title>
+    <title>MOBA Legends: Final Map</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; user-select: none; }
         .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
         
-        /* DEBUG CONSOLE */
         #debug-log {
-            position: absolute; top: 10px; left: 10px; width: 240px; max-height: 120px;
-            background: rgba(0,0,0,0.8); color: #00ffcc; font-family: monospace; font-size: 11px;
-            padding: 8px; border-radius: 5px; overflow-y: auto; z-index: 1000;
+            position: absolute; top: 10px; left: 10px; width: 250px; max-height: 120px;
+            background: rgba(0,0,0,0.85); color: #00ffcc; font-family: monospace; font-size: 11px;
+            padding: 10px; border-radius: 8px; overflow-y: auto; z-index: 1000;
             display: none; pointer-events: none; border: 1px solid #333;
         }
 
-        /* МЕНЮ */
-        #menu-screen { background: radial-gradient(circle, #1a2a6c, #000); }
-        h1 { color: #f1c40f; font-size: 36px; text-shadow: 0 0 20px #f1c40f; margin-bottom: 30px; }
+        #menu-screen { background: radial-gradient(circle at center, #1e3799, #111); }
+        h1 { color: #f1c40f; font-size: 38px; text-shadow: 0 0 20px #f1c40f; margin-bottom: 20px; }
         
-        #debug-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid #fff; padding: 10px 15px; border-radius: 5px; cursor: pointer; pointer-events: auto; z-index: 1001; }
+        #debug-btn { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.6); color: #fff; border: 1px solid #555; padding: 10px 20px; border-radius: 25px; cursor: pointer; z-index: 1001; pointer-events: auto; }
 
-        /* ЗАГРУЗКА */
         #loading-screen { background: #000; display: none; z-index: 500; }
-        .bar { width: 250px; height: 4px; background: #222; border-radius: 2px; margin-top: 15px; overflow: hidden; }
-        #fill { width: 0%; height: 100%; background: #f1c40f; }
+        .bar { width: 280px; height: 6px; background: #222; border-radius: 3px; margin-top: 20px; overflow: hidden; }
+        #fill { width: 0%; height: 100%; background: #00d2ff; transition: width 0.1s; }
 
-        /* НАСТРОЙКИ */
-        #settings-screen { background: rgba(0,0,0,0.95); display: none; color: white; z-index: 600; }
-        .s-row { width: 280px; display: flex; justify-content: space-between; align-items: center; margin: 15px 0; }
+        #settings-screen { background: rgba(0,0,0,0.98); display: none; color: white; z-index: 600; }
+        .s-row { width: 300px; display: flex; justify-content: space-between; align-items: center; margin: 18px 0; font-size: 16px; }
         
         .btn {
-            background: linear-gradient(to bottom, #2980b9, #3498db); border: 2px solid #f1c40f;
-            color: white; padding: 12px 40px; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; margin: 10px;
+            background: linear-gradient(135deg, #0984e3, #6c5ce7); border: 2px solid #fff;
+            color: white; padding: 14px 45px; font-size: 18px; font-weight: bold; border-radius: 30px; cursor: pointer; margin: 10px;
         }
 
-        /* ИГРА */
         #game-ui { display: none; pointer-events: none; }
-        #minimap { position: absolute; top: 15px; left: 15px; width: 120px; height: 120px; background: rgba(0,20,0,0.85); border: 2px solid #444; border-radius: 5px; }
-        #joy-base { position: absolute; bottom: 50px; left: 50px; width: 110px; height: 110px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; pointer-events: auto; }
-        #joy-stick { position: absolute; top: 50%; left: 50%; width: 45px; height: 45px; background: #fff; opacity: 0.6; border-radius: 50%; transform: translate(-50%, -50%); }
+        #minimap { position: absolute; top: 15px; left: 15px; width: 130px; height: 130px; background: rgba(0,15,5,0.9); border: 2px solid #555; border-radius: 10px; }
+        #joy-base { position: absolute; bottom: 50px; left: 50px; width: 110px; height: 110px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; pointer-events: auto; }
+        #joy-stick { position: absolute; top: 50%; left: 50%; width: 45px; height: 45px; background: #fff; opacity: 0.7; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px #000; }
         
         #recall-btn { 
-            position: absolute; bottom: 50px; right: 50px; width: 80px; height: 80px; 
-            border-radius: 50%; background: #4834d4; border: 4px solid #fff; 
+            position: absolute; bottom: 50px; right: 50px; width: 85px; height: 85px; 
+            border-radius: 50%; background: radial-gradient(#4834d4, #2c2c54); border: 4px solid #fff; 
             color: white; display: flex; align-items: center; justify-content: center; 
-            font-size: 35px; pointer-events: auto; box-shadow: 0 0 20px #4834d4; transition: transform 0.1s;
+            font-size: 38px; pointer-events: auto; box-shadow: 0 0 25px rgba(72, 52, 212, 0.8);
         }
-        #recall-btn:active { transform: scale(0.85); background: #686de0; }
 
-        #msg { position: absolute; bottom: 180px; width: 100%; text-align: center; color: #00ffff; font-size: 22px; font-weight: bold; display: none; text-shadow: 0 0 10px #000; }
+        #msg { position: absolute; bottom: 180px; width: 100%; text-align: center; color: #00ffff; font-size: 24px; font-weight: bold; display: none; text-shadow: 0 0 15px #000; }
     </style>
 </head>
 <body>
@@ -60,12 +54,12 @@
 
     <div id="menu-screen" class="screen">
         <h1>MOBA LEGENDS</h1>
-        <button class="btn" onclick="startLoading()">ИГРАТЬ</button>
+        <button class="btn" onclick="startLoading()">В БОЙ</button>
         <button class="btn" onclick="openSettings(true)">НАСТРОЙКИ</button>
     </div>
 
     <div id="loading-screen" class="screen">
-        <h2 style="color:white; letter-spacing: 2px;">ПОДГОТОВКА ГЕРОЯ...</h2>
+        <h2 style="color:white; letter-spacing: 3px;">ЗАГРУЗКА ЛАНДШАФТА...</h2>
         <div class="bar"><div id="fill"></div></div>
     </div>
 
@@ -74,15 +68,15 @@
         <div class="s-row"><span>Чувствительность:</span><input type="range" id="sens" min="0.5" max="3" step="0.1" value="1.5"></div>
         <div class="s-row"><span>Инверсия X:</span><input type="checkbox" id="invX"></div>
         <div class="s-row"><span>Инверсия Y:</span><input type="checkbox" id="invY"></div>
-        <button class="btn" onclick="openSettings(false)">СОХРАНИТЬ</button>
+        <button class="btn" onclick="openSettings(false)">ГОТОВО</button>
     </div>
 
     <div id="game-ui" class="screen">
         <div id="minimap"></div>
         <div id="joy-base"><div id="joy-stick"></div></div>
         <div id="msg">ВОЗВРАЩЕНИЕ... <span id="timer">5</span></div>
-        <div id="recall-btn" onpointerdown="doRecall()">🏠</div>
-        <div id="cam-zone" style="position:absolute; right:0; top:0; width:60%; height:100%; pointer-events:auto;"></div>
+        <div id="recall-btn" onpointerdown="startRecall()">🏠</div>
+        <div id="cam-touch-zone" style="position:absolute; right:0; top:0; width:65%; height:100%; pointer-events:auto;"></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -103,13 +97,13 @@
             dbgOn = !dbgOn;
             dbg.style.display = dbgOn ? 'block' : 'none';
             document.getElementById('debug-btn').innerText = `DEBUG: ${dbgOn ? 'ON' : 'OFF'}`;
-            log("Дебаг консоль готова");
+            log("Консоль активирована");
         }
 
         let scene, camera, renderer, player, recallFx, obstacles = [];
         let isMoving = false, joyX = 0, joyZ = 0;
-        let isRecalling = false, recallInt;
-        let camPan = { x: 0, z: 0 };
+        let isRecalling = false, recallTimer;
+        let camOffset = { x: 0, z: 0 };
         let cfg = { sens: 1.5, iX: 1, iY: 1 };
 
         function openSettings(show) { document.getElementById('settings-screen').style.display = show ? 'flex' : 'none'; }
@@ -121,7 +115,7 @@
             let iv = setInterval(() => {
                 p += 5; document.getElementById('fill').style.width = p + '%';
                 if(p >= 100) { clearInterval(iv); initGame(); }
-            }, 50);
+            }, 40);
         }
 
         function initGame() {
@@ -133,98 +127,121 @@
             document.getElementById('game-ui').style.display = 'block';
 
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x05080a);
-            scene.fog = new THREE.Fog(0x05080a, 20, 100);
+            scene.background = new THREE.Color(0x050a10);
+            scene.fog = new THREE.Fog(0x050a10, 25, 120);
 
             camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-            let sun = new THREE.DirectionalLight(0xffffff, 1.0);
-            sun.position.set(50, 80, 50);
+            let sun = new THREE.DirectionalLight(0xffffff, 1.2);
+            sun.position.set(40, 100, 40);
             scene.add(sun);
 
-            buildWorld();
-            createHero();
-            setupControls();
-            log("Мир создан. Карта 300x300");
+            generateDetailedMap();
+            createHeroModel();
+            setupInteractions();
+            log("Игра готова! Карта 400x400");
             animate();
         }
 
-        function buildWorld() {
-            // Земля
-            let ground = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), new THREE.MeshStandardMaterial({color: 0x1a241a}));
+        function generateDetailedMap() {
+            // Огромная земля
+            let ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({color: 0x1a261a}));
             ground.rotation.x = -Math.PI/2;
             scene.add(ground);
 
-            // Река
-            let river = new THREE.Mesh(new THREE.PlaneGeometry(400, 25), new THREE.MeshStandardMaterial({color: 0x0984e3, transparent: true, opacity: 0.7}));
+            // Река с эффектом глубины
+            let river = new THREE.Mesh(new THREE.PlaneGeometry(500, 30), new THREE.MeshStandardMaterial({color: 0x004d99, transparent: true, opacity: 0.8}));
             river.rotation.x = -Math.PI/2; river.rotation.z = Math.PI/4;
             river.position.y = 0.1;
             scene.add(river);
 
-            // Базы
-            addStructure(-120, 120, 0x2980b9, "BASE"); 
-            addStructure(120, -120, 0xb71540, "BASE"); 
+            // Базы на возвышенностях
+            addFortress(-150, 150, 0x0984e3); // Синяя
+            addFortress(150, -150, 0xd63031); // Красная
 
-            // Стены и деревья
-            for(let i=0; i<60; i++) {
-                let rx = (Math.random()-0.5)*250, rz = (Math.random()-0.5)*250;
-                if(Math.abs(rx+rz) > 40) addRock(rx, rz);
+            // Каменные стены вдоль дорог
+            for(let i=0; i<15; i++) {
+                addWall(-80 + i*10, 80 - i*10);
+                addWall(80 - i*10, -80 + i*10);
+            }
+
+            // Растительность и камни
+            for(let i=0; i<120; i++) {
+                let rx = (Math.random()-0.5)*350, rz = (Math.random()-0.5)*350;
+                if(Math.abs(rx+rz) > 50) {
+                    if(Math.random() > 0.4) addBush(rx, rz);
+                    else addRock(rx, rz);
+                }
             }
         }
 
-        function addStructure(x, z, col, type) {
+        function addFortress(x, z, col) {
             let g = new THREE.Group();
-            let b = new THREE.Mesh(new THREE.CylinderGeometry(5, 7, 5, 6), new THREE.MeshStandardMaterial({color: 0x2d3436}));
-            g.add(b);
-            let top = new THREE.Mesh(new THREE.OctahedronGeometry(3), new THREE.MeshStandardMaterial({color: col, emissive: col}));
-            top.position.y = 6;
-            g.add(top);
-            g.position.set(x, 2.5, z);
+            let base = new THREE.Mesh(new THREE.CylinderGeometry(8, 10, 6, 6), new THREE.MeshStandardMaterial({color: 0x2d3436}));
+            g.add(base);
+            let crystal = new THREE.Mesh(new THREE.OctahedronGeometry(4), new THREE.MeshStandardMaterial({color: col, emissive: col, emissiveIntensity: 2}));
+            crystal.position.y = 8;
+            g.add(crystal);
+            g.position.set(x, 3, z);
             scene.add(g);
-            obstacles.push({x, z, r: 7});
+            obstacles.push({x, z, r: 10});
+        }
+
+        function addWall(x, z) {
+            let w = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 6), new THREE.MeshStandardMaterial({color: 0x3d3d3d}));
+            w.position.set(x, 2, z);
+            scene.add(w);
+            obstacles.push({x, z, r: 4});
+        }
+
+        function addBush(x, z) {
+            let b = new THREE.Mesh(new THREE.SphereGeometry(1.5, 6, 6), new THREE.MeshStandardMaterial({color: 0x27ae60}));
+            b.scale.y = 0.5; b.position.set(x, 0.5, z);
+            scene.add(b);
         }
 
         function addRock(x, z) {
-            let h = 2 + Math.random()*5;
-            let m = new THREE.Mesh(new THREE.BoxGeometry(4, h, 4), new THREE.MeshStandardMaterial({color: 0x3d3d3d}));
-            m.position.set(x, h/2, z);
-            scene.add(m);
-            obstacles.push({x, z, r: 3});
+            let r = new THREE.Mesh(new THREE.DodecahedronGeometry(2), new THREE.MeshStandardMaterial({color: 0x636e72}));
+            r.position.set(x, 1, z); r.rotation.set(Math.random(), Math.random(), Math.random());
+            scene.add(r);
+            obstacles.push({x, z, r: 2});
         }
 
-        function createHero() {
+        function createHeroModel() {
             player = new THREE.Group();
             let pGeo;
             try { pGeo = new THREE.CapsuleGeometry(0.6, 1.2, 4, 8); } 
-            catch(e) { pGeo = new THREE.CylinderGeometry(0.6, 0.6, 2, 8); log("FALLBACK: Cylinder hero"); }
+            catch(e) { pGeo = new THREE.CylinderGeometry(0.6, 0.6, 2, 8); log("FALLBACK: Cylinder Mode"); }
             
             let body = new THREE.Mesh(pGeo, new THREE.MeshStandardMaterial({color: 0x00d2ff}));
             body.position.y = 1;
             player.add(body);
 
-            // Шлем и меч
-            let head = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshStandardMaterial({color: 0xffffff}));
-            head.position.y = 2.2;
+            let head = new THREE.Mesh(new THREE.SphereGeometry(0.45), new THREE.MeshStandardMaterial({color: 0xffffff}));
+            head.position.y = 2.3;
             player.add(head);
+
             let sword = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.5, 0.2), new THREE.MeshStandardMaterial({color: 0xffffff, emissive: 0x00d2ff}));
-            sword.position.set(0.8, 1.5, 0.4); sword.rotation.x = 0.5;
+            sword.position.set(0.8, 1.5, 0.4); sword.rotation.x = 0.6;
             player.add(sword);
 
-            recallFx = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 15, 16, 1, true), new THREE.MeshBasicMaterial({color: 0x00ffff, transparent: true, opacity: 0, side: THREE.DoubleSide}));
-            recallFx.position.y = 7.5;
+            recallFx = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 20, 16, 1, true), new THREE.MeshBasicMaterial({color: 0x00ffff, transparent: true, opacity: 0, side: THREE.DoubleSide}));
+            recallFx.position.y = 10;
             player.add(recallFx);
 
             scene.add(player);
-            player.position.set(-110, 0, 110);
+            player.position.set(-140, 0, 140);
         }
 
-        function setupControls() {
+        function setupInteractions() {
+            // Джойстик
             let jb = document.getElementById('joy-base'), js = document.getElementById('joy-stick');
-            let move = (e) => {
+            let moveJoy = (e) => {
                 e.preventDefault();
                 let t = e.touches ? e.touches[0] : e;
                 let r = jb.getBoundingClientRect();
@@ -233,26 +250,37 @@
                 let a = Math.atan2(dy, dx);
                 js.style.transform = `translate(calc(-50% + ${Math.cos(a)*d}px), calc(-50% + ${Math.sin(a)*d}px))`;
                 joyX = Math.cos(a); joyZ = Math.sin(a); isMoving = true;
-                if(isRecalling) cancelRecall();
+                if(isRecalling) stopRecall();
             };
-            jb.addEventListener('touchstart', move); jb.addEventListener('touchmove', move);
+            jb.addEventListener('touchstart', moveJoy); jb.addEventListener('touchmove', moveJoy);
             window.addEventListener('touchend', () => { isMoving = false; joyX=0; joyZ=0; js.style.transform='translate(-50%,-50%)'; });
+
+            // Вращение камеры пальцем
+            let cz = document.getElementById('cam-touch-zone'), lastX, lastY;
+            cz.addEventListener('touchstart', e => { lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; });
+            cz.addEventListener('touchmove', e => {
+                let dx = e.touches[0].clientX - lastX;
+                let dy = e.touches[0].clientY - lastY;
+                camOffset.x += dx * 0.05 * cfg.sens * cfg.iX;
+                camOffset.z += dy * 0.05 * cfg.sens * cfg.iY;
+                lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+            });
         }
 
-        function doRecall() {
+        function startRecall() {
             if(isRecalling || isMoving) return;
             isRecalling = true;
             document.getElementById('msg').style.display = 'block';
-            recallFx.material.opacity = 0.3;
+            recallFx.material.opacity = 0.4;
             let t = 5;
             document.getElementById('timer').innerText = t;
-            recallInt = setInterval(() => {
+            recallTimer = setInterval(() => {
                 t--; document.getElementById('timer').innerText = t;
-                if(t <= 0) { player.position.set(-110, 0, 110); cancelRecall(); }
+                if(t <= 0) { player.position.set(-140, 0, 140); stopRecall(); }
             }, 1000);
         }
-        function cancelRecall() { 
-            isRecalling = false; clearInterval(recallInt); 
+        function stopRecall() { 
+            isRecalling = false; clearInterval(recallTimer); 
             document.getElementById('msg').style.display = 'none'; 
             recallFx.material.opacity = 0;
         }
@@ -260,23 +288,25 @@
         function animate() {
             requestAnimationFrame(animate);
             if(isMoving && !isRecalling) {
-                let speed = 0.13; // Слегка уменьшил скорость
+                let speed = 0.14;
                 let nX = player.position.x + joyX * speed;
                 let nZ = player.position.z + joyZ * speed;
                 let hit = false;
                 for(let o of obstacles) {
                     if(Math.sqrt((nX-o.x)**2 + (nZ-o.z)**2) < o.r + 0.8) hit = true;
                 }
-                if(!hit && Math.abs(nX) < 145 && Math.abs(nZ) < 145) {
-                    player.position.set(nX, 0, nZ);
-                }
+                if(!hit && Math.abs(nX) < 195 && Math.abs(nZ) < 195) player.position.set(nX, 0, nZ);
                 player.rotation.y = Math.atan2(-joyX, -joyZ);
             }
+            
             if(isRecalling) recallFx.rotation.y += 0.1;
 
-            camPan.x *= 0.9; camPan.z *= 0.9;
-            camera.position.set(player.position.x + camPan.x, 22, player.position.z + 18 + camPan.z);
-            camera.lookAt(player.position.x + camPan.x, 0, player.position.z + camPan.z);
+            // Плавное возвращение камеры к центру
+            camOffset.x *= 0.92; camOffset.z *= 0.92;
+            
+            camera.position.set(player.position.x + camOffset.x, 24, player.position.z + 20 + camOffset.z);
+            camera.lookAt(player.position.x + camOffset.x, 0, player.position.z + camOffset.z);
+            
             renderer.render(scene, camera);
         }
     </script>
