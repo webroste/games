@@ -3,444 +3,337 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MLBB Clone: Full UI</title>
+    <title>MLBB Stable Build</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #050a05; touch-action: none; font-family: 'Segoe UI', sans-serif; user-select: none; }
-        canvas { display: block; }
+        body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: 'Segoe UI', sans-serif; user-select: none; }
         
-        /* --- UI СЛОИ --- */
-        .screen { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        /* Лог ошибок (на всякий случай) */
+        #debug-console {
+            position: absolute; top: 0; left: 0; width: 100%; color: red; 
+            background: rgba(0,0,0,0.5); font-size: 12px; pointer-events: none; z-index: 9999;
+        }
+
+        /* ЭКРАНЫ */
+        .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         
-        /* ГЛАВНОЕ МЕНЮ */
-        #menu-screen { display: flex; background: url('https://img.freepik.com/free-vector/dark-green-low-poly-background_1017-33742.jpg') center/cover; z-index: 200; }
-        h1 { color: gold; font-size: 40px; text-shadow: 0 0 10px black; margin-bottom: 30px; text-transform: uppercase; }
+        /* МЕНЮ (Градиент вместо картинки) */
+        #menu-screen { 
+            background: radial-gradient(circle at center, #1a2a3a 0%, #000000 100%);
+            z-index: 200; 
+        }
+        h1 { color: gold; font-size: 40px; text-shadow: 0 0 10px black; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 5px; text-align: center;}
+        
         .btn {
-            background: linear-gradient(to bottom, #1e5799 0%,#2989d8 50%,#207cca 51%,#7db9e8 100%);
+            background: linear-gradient(to bottom, #1e5799, #2989d8);
             border: 2px solid gold; border-radius: 8px; color: white;
             padding: 15px 40px; font-size: 20px; font-weight: bold; margin: 10px;
-            cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5); text-transform: uppercase;
+            cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            min-width: 200px;
         }
         .btn:active { transform: scale(0.95); }
 
-        /* НАСТРОЙКИ */
-        #settings-screen { background: rgba(0,0,0,0.9); z-index: 210; color: white; }
-        .setting-row { margin: 15px; display: flex; justify-content: space-between; width: 300px; align-items: center; }
-        input[type=range] { width: 150px; }
-
-        /* ИГРОВОЙ ИНТЕРФЕЙС */
-        #game-ui { pointer-events: none; z-index: 100; }
+        /* ИГРОВОЙ ИНТЕРФЕЙС (Скрыт по умолчанию) */
+        #game-ui { display: none; pointer-events: none; z-index: 100; }
         
         /* Мини-карта */
         #minimap {
             position: absolute; top: 15px; left: 15px;
-            width: 130px; height: 130px;
-            background: rgba(0, 10, 0, 0.8);
-            border: 2px solid #666; border-radius: 8px;
+            width: 120px; height: 120px;
+            background: rgba(0, 20, 0, 0.9);
+            border: 2px solid #555; border-radius: 5px;
             overflow: hidden; pointer-events: none;
-        }
-        #minimap-player {
-            position: absolute; width: 6px; height: 6px;
-            background: #00ff00; border-radius: 50%; box-shadow: 0 0 4px #00ff00;
-            transform: translate(-50%, -50%);
         }
 
         /* Джойстик */
         #joy-container {
-            position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px;
+            position: absolute; bottom: 50px; left: 50px; width: 120px; height: 120px;
             background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%;
             pointer-events: auto;
         }
         #joy-stick {
             position: absolute; top: 50%; left: 50%; width: 50px; height: 50px;
-            background: rgba(255,255,255,0.6); border-radius: 50%; transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.8); border-radius: 50%; transform: translate(-50%, -50%);
         }
 
-        /* Кнопки действий */
-        #actions { position: absolute; bottom: 40px; right: 40px; pointer-events: auto; display: flex; gap: 15px; align-items: flex-end;}
+        /* Кнопки справа */
+        #actions { position: absolute; bottom: 50px; right: 50px; pointer-events: auto; display: flex; gap: 20px; align-items: flex-end; }
         .skill-btn {
-            width: 60px; height: 60px; border-radius: 50%; border: 2px solid white;
-            background: rgba(0,0,0,0.5); color: white; font-weight: bold;
-            display: flex; align-items: center; justify-content: center; font-size: 12px;
+            width: 60px; height: 60px; border-radius: 50%; border: 3px solid #ccc;
+            background: rgba(0,0,0,0.6); color: white; display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
         }
-        #recall-btn { background: #442266; border-color: #aa55ff; }
-        #attack-btn { width: 80px; height: 80px; background: #662222; border-color: #ff5555; font-size: 16px; }
+        #recall-btn { background: #4b0082; border-color: #9370db; }
+        #attack-btn { width: 90px; height: 90px; background: #8b0000; border-color: #ff4500; font-size: 30px; }
 
-        /* Сообщение о реколе */
-        #recall-msg {
-            position: absolute; bottom: 150px; width: 100%; text-align: center;
-            color: #00ffff; font-size: 24px; font-weight: bold; text-shadow: 0 0 5px black;
-            display: none;
-        }
+        /* Сообщение */
+        #msg { position: absolute; bottom: 180px; width: 100%; text-align: center; color: cyan; font-size: 24px; font-weight: bold; display: none; text-shadow: 2px 2px 0 #000;}
     </style>
 </head>
 <body>
 
-    <div id="menu-screen" class="screen">
-        <h1>MOBA LEGENDS</h1>
-        <button class="btn" onclick="startGame()">ИГРАТЬ</button>
-        <button class="btn" onclick="openSettings()">НАСТРОЙКИ</button>
-    </div>
+    <div id="debug-console"></div>
 
-    <div id="settings-screen" class="screen">
-        <h2>НАСТРОЙКИ</h2>
-        <div class="setting-row">
-            <span>Чувствительность камеры:</span>
-            <input type="range" min="0.5" max="3" step="0.1" value="1" oninput="updateSettings('sens', this.value)">
-        </div>
-        <div class="setting-row">
-            <span>Инверсия X:</span>
-            <input type="checkbox" onchange="updateSettings('invX', this.checked)">
-        </div>
-        <div class="setting-row">
-            <span>Инверсия Y:</span>
-            <input type="checkbox" onchange="updateSettings('invY', this.checked)">
-        </div>
-        <button class="btn" style="background: #555;" onclick="closeSettings()">НАЗАД</button>
+    <div id="menu-screen" class="screen">
+        <h1>MOBA LEGENDS<br><span style="font-size:16px; color:#aaa;">Mobile Build</span></h1>
+        <button class="btn" onclick="tryStartGame()">ИГРАТЬ</button>
     </div>
 
     <div id="game-ui" class="screen">
-        <div id="minimap"><div id="minimap-player"></div></div>
+        <div id="minimap"></div>
         <div id="joy-container"><div id="joy-stick"></div></div>
         
-        <div id="recall-msg">ВОЗВРАЩЕНИЕ... <span id="recall-timer">5</span></div>
+        <div id="msg">ВОЗВРАЩЕНИЕ... <span id="timer">5</span></div>
 
         <div id="actions">
-            <div id="recall-btn" class="skill-btn" ontouchstart="startRecall()">🏠</div>
-            <div id="attack-btn" class="skill-btn">⚔️</div>
+            <div id="recall-btn" class="skill-btn" ontouchstart="startRecall(event)">🏠</div>
+            <div id="attack-btn" class="skill-btn" ontouchstart="doAttack(event)">⚔️</div>
         </div>
         
-        <div id="camera-zone" style="position: absolute; top:0; right:0; width: 50%; height: 100%; pointer-events: auto;"></div>
+        <div id="cam-zone" style="position: absolute; right: 0; top: 0; width: 50%; height: 100%; pointer-events: auto;"></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        // --- ГЛОБАЛЬНЫЕ НАСТРОЙКИ ---
-        const Settings = {
-            camSens: 1.0,
-            invX: false,
-            invY: false
+        // --- ОТЛОВ ОШИБОК ---
+        window.onerror = function(msg, url, line) {
+            document.getElementById('debug-console').innerHTML += `ERR: ${msg} (Line ${line})<br>`;
         };
 
-        window.updateSettings = (key, val) => {
-            if (key === 'sens') Settings.camSens = parseFloat(val);
-            if (key === 'invX') Settings.invX = val;
-            if (key === 'invY') Settings.invY = val;
-        };
-
-        // --- ЛОГИКА ИГРЫ ---
         let scene, camera, renderer, player, obstacles = [];
-        let joyX = 0, joyZ = 0, isMoving = false;
-        let isRecalling = false, recallTimeout;
+        let isMoving = false, joyX = 0, joyZ = 0;
+        let isRecalling = false;
         
-        // Переменные камеры
-        let camPanX = 0, camPanZ = 0;
-        let camBaseOffset = { x: 0, y: 18, z: 14 };
+        // Камера
+        let camOffset = {x:0, y:18, z:14};
+        let camPan = {x:0, z:0};
 
         const MAP_SIZE = 100;
-        const SPAWN_POS = { x: -32, z: 32 }; // Исправленный спавн (рядом с троном)
+        const SPAWN = {x: -35, z: 35};
 
-        function init() {
+        function tryStartGame() {
+            if (typeof THREE === 'undefined') {
+                alert("Ошибка: Интернет медленный, Three.js не загрузился!");
+                return;
+            }
+            document.getElementById('menu-screen').style.display = 'none';
+            document.getElementById('game-ui').style.display = 'block';
+            initGame();
+        }
+
+        function initGame() {
+            // 1. Сцена
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a100a);
-            scene.fog = new THREE.Fog(0x0a100a, 20, 90);
+            scene.background = new THREE.Color(0x0b1116);
+            scene.fog = new THREE.Fog(0x0b1116, 20, 80);
 
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            
+            // 2. Камера
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+
+            // 3. Рендер
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Оптимизация для мобилок
             document.body.appendChild(renderer.domElement);
 
+            // 4. Свет
             scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-            const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-            sun.position.set(20, 50, 20);
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(20, 40, 20);
             scene.add(sun);
 
-            createLevel();
-
-            // Создаем героя
-            player = new Hero(scene, 0x0088ff);
-            player.group.position.set(SPAWN_POS.x, 0, SPAWN_POS.z);
-
+            createMap();
+            createPlayer();
             setupControls();
-            setupCameraInput();
             
             animate();
         }
 
-        // --- УПРАВЛЕНИЕ МЕНЮ ---
-        window.startGame = () => {
-            document.getElementById('menu-screen').style.display = 'none';
-            document.getElementById('game-ui').style.display = 'block';
-            if (!scene) init();
-        };
-        window.openSettings = () => {
-            document.getElementById('menu-screen').style.display = 'none';
-            document.getElementById('settings-screen').style.display = 'flex';
-        };
-        window.closeSettings = () => {
-            document.getElementById('settings-screen').style.display = 'none';
-            document.getElementById('menu-screen').style.display = 'flex';
-        };
-
-        // --- ГЕНЕРАЦИЯ КАРТЫ ---
-        function createLevel() {
+        function createMap() {
             // Земля
             const ground = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE), new THREE.MeshStandardMaterial({ color: 0x152515 }));
             ground.rotation.x = -Math.PI/2;
             scene.add(ground);
 
-            // Река (диагональная)
-            const riverGeo = new THREE.PlaneGeometry(MAP_SIZE * 1.5, 8);
-            const riverMat = new THREE.MeshStandardMaterial({ color: 0x224466, roughness: 0.2 });
-            const river = new THREE.Mesh(riverGeo, riverMat);
-            river.rotation.x = -Math.PI/2;
-            river.rotation.z = -Math.PI/4;
-            river.position.y = 0.05;
+            // Река
+            const river = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE*1.5, 8), new THREE.MeshStandardMaterial({ color: 0x224466 }));
+            river.rotation.x = -Math.PI/2; river.rotation.z = -Math.PI/4; river.position.y = 0.05;
             scene.add(river);
 
-            // Линии
-            const lineMat = new THREE.MeshBasicMaterial({ color: 0x334433 });
-            const mid = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE*1.4, 3), lineMat);
-            mid.rotation.x = -Math.PI/2; mid.rotation.z = Math.PI/4; mid.position.y = 0.06;
-            scene.add(mid);
-
-            // БАЗЫ (Троны)
-            addObj(-42, 42, 5, 8, 0x003366, "Base"); // Синяя (Союзная)
-            addObj(42, -42, 5, 8, 0x661111, "Base"); // Красная (Враг)
-
-            // БАШНИ (Turrets)
-            addObj(-20, 20, 2.5, 6, 0x445566, "Tower"); // Мид Синий
-            addObj(20, -20, 2.5, 6, 0x443333, "Tower"); // Мид Красный
-
-            // ДЕКОР (Лес и Камни)
-            for(let i=0; i<80; i++) {
-                let rx = (Math.random() - 0.5) * MAP_SIZE;
-                let rz = (Math.random() - 0.5) * MAP_SIZE;
-                
-                // Проверка чтобы не ставить на базе и линиях
-                if (Math.abs(rx + rz) > 12 && Math.abs(rx - rz) > 12 && Math.abs(rx)>8) {
-                    // 70% Деревья, 30% Камни/Кусты
-                    if (Math.random() > 0.3) {
-                        addObj(rx, rz, 1 + Math.random(), 4 + Math.random()*3, 0x0b1a0b, "Tree");
-                    } else {
-                        addObj(rx, rz, 1.5, 1.5, 0x3a4a3a, "Rock");
-                    }
+            // Объекты
+            addObj(-40, 40, 5, 8, 0x004488, "Base"); // Синие
+            addObj(40, -40, 5, 8, 0x880000, "Base"); // Красные
+            
+            // Лес
+            for(let i=0; i<60; i++) {
+                let rx = (Math.random()-0.5)*80;
+                let rz = (Math.random()-0.5)*80;
+                if (Math.abs(rx+rz) > 15) { // Не на линии
+                    addObj(rx, rz, 1.5, Math.random()*4+3, 0x0b1a0b, "Tree");
                 }
             }
         }
 
         function addObj(x, z, r, h, color, type) {
-            let geo;
-            if (type === "Rock") geo = new THREE.BoxGeometry(r*2, h, r*2);
-            else geo = new THREE.CylinderGeometry(r*0.8, r, h, 7);
-
+            const geo = type === "Tree" ? new THREE.CylinderGeometry(0, r, h, 8) : new THREE.CylinderGeometry(r, r, h, 16);
             const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color }));
             mesh.position.set(x, h/2, z);
-            mesh.userData.radius = r;
+            mesh.userData = { radius: r };
             scene.add(mesh);
             obstacles.push(mesh);
+
+            // Точка на карте
+            if (type === "Base") {
+                const dot = document.createElement('div');
+                dot.style.cssText = `position:absolute; width:6px; height:6px; background:gold; border-radius:50%;`;
+                dot.style.left = ((x+MAP_SIZE/2)/MAP_SIZE)*120 + 'px';
+                dot.style.top = ((z+MAP_SIZE/2)/MAP_SIZE)*120 + 'px';
+                document.getElementById('minimap').appendChild(dot);
+            }
+        }
+
+        function createPlayer() {
+            player = new THREE.Group();
             
-            // Точка на мини-карте
-            let dotColor = (type === "Base") ? "gold" : (type === "Tower" ? "silver" : "#224422");
-            if (type === "Tree") return; // Деревья не рисуем на карте чтобы не засорять
-            createMinimapDot(x, z, dotColor);
+            // Тело
+            const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 1, 4, 8), new THREE.MeshStandardMaterial({ color: 0x0088ff }));
+            body.position.y = 0.9;
+            player.add(body);
+            
+            // Кольцо
+            const ring = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.7, 32), new THREE.MeshBasicMaterial({ color: 0x00ff00, side: 2 }));
+            ring.rotation.x = -Math.PI/2; ring.position.y = 0.05;
+            player.add(ring);
+
+            // Точка игрока на миникарте
+            const dot = document.createElement('div');
+            dot.id = 'p-dot';
+            dot.style.cssText = `position:absolute; width:5px; height:5px; background:#0f0; border-radius:50%; box-shadow:0 0 4px #0f0;`;
+            document.getElementById('minimap').appendChild(dot);
+
+            scene.add(player);
+            player.position.set(SPAWN.x, 0, SPAWN.z);
         }
 
-        // --- ГЕРОЙ ---
-        class Hero {
-            constructor(scene, color) {
-                this.group = new THREE.Group();
-                // Тело
-                const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 1, 4, 8), new THREE.MeshStandardMaterial({ color }));
-                body.position.y = 0.9;
-                this.group.add(body);
-                // Кольцо под ногами (выделение)
-                const ring = new THREE.Mesh(new THREE.RingGeometry(0.7, 0.8, 32), new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide }));
-                ring.rotation.x = -Math.PI/2;
-                ring.position.y = 0.05;
-                this.group.add(ring);
+        // --- УПРАВЛЕНИЕ ---
+        function setupControls() {
+            // Джойстик
+            const zone = document.getElementById('joy-container');
+            const stick = document.getElementById('joy-stick');
+            
+            const handleJoy = (e) => {
+                e.preventDefault();
+                const t = e.touches[0];
+                const r = zone.getBoundingClientRect();
+                const dx = t.clientX - (r.left + 60);
+                const dy = t.clientY - (r.top + 60);
+                const dist = Math.min(Math.sqrt(dx*dx+dy*dy), 50);
+                const angle = Math.atan2(dy, dx);
                 
-                scene.add(this.group);
-                this.radius = 0.6;
-                this.speed = 0.12;
-            }
-            update(mx, mz, obstacles) {
-                if (mx === 0 && mz === 0) return;
-                
-                // Прерывание рекола при движении
-                if (isRecalling) cancelRecall();
+                stick.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
+                joyX = Math.cos(angle); joyZ = Math.sin(angle);
+                isMoving = true;
+                if(isRecalling) stopRecall(); // Сбить рекол
+            };
 
-                let nextX = this.group.position.x + mx * this.speed;
-                let nextZ = this.group.position.z + mz * this.speed;
-                
-                // Простая коллизия
-                let collide = false;
-                for (let obj of obstacles) {
-                    const dist = Math.sqrt((nextX - obj.position.x)**2 + (nextZ - obj.position.z)**2);
-                    if (dist < this.radius + (obj.userData.radius || 1)) { collide = true; break; }
-                }
+            zone.addEventListener('touchstart', handleJoy, {passive:false});
+            zone.addEventListener('touchmove', handleJoy, {passive:false});
+            zone.addEventListener('touchend', () => {
+                isMoving = false; joyX=0; joyZ=0;
+                stick.style.transform = `translate(-50%, -50%)`;
+            });
 
-                // Границы карты
-                if (Math.abs(nextX) > MAP_SIZE/2 - 1) collide = true;
-                if (Math.abs(nextZ) > MAP_SIZE/2 - 1) collide = true;
-
-                if (!collide) {
-                    this.group.position.set(nextX, 0, nextZ);
-                }
-                this.group.rotation.y = Math.atan2(mx, mz);
-            }
-        }
-
-        // --- ЛОГИКА РЕКОЛА (ВОЗВРАЩЕНИЕ) ---
-        window.startRecall = () => {
-            if (isRecalling || isMoving) return;
-            isRecalling = true;
-            document.getElementById('recall-msg').style.display = 'block';
-            let timeLeft = 5;
-            document.getElementById('recall-timer').innerText = timeLeft;
-
-            // Эффект вращения (визуальный)
-            const spinInterval = setInterval(() => {
-                if (!isRecalling) { clearInterval(spinInterval); return; }
-                player.group.rotation.y += 0.5;
-            }, 50);
-
-            const timerInterval = setInterval(() => {
-                if (!isRecalling) { clearInterval(timerInterval); return; }
-                timeLeft--;
-                document.getElementById('recall-timer').innerText = timeLeft;
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    finishRecall();
-                }
-            }, 1000);
-
-            recallTimeout = { spin: spinInterval, timer: timerInterval };
-        };
-
-        function cancelRecall() {
-            isRecalling = false;
-            document.getElementById('recall-msg').style.display = 'none';
-        }
-
-        function finishRecall() {
-            cancelRecall();
-            player.group.position.set(SPAWN_POS.x, 0, SPAWN_POS.z);
-            // Эффект телепорта (вспышка камеры)
-            renderer.domElement.style.opacity = 0;
-            setTimeout(() => renderer.domElement.style.opacity = 1, 200);
-        }
-
-
-        // --- УПРАВЛЕНИЕ КАМЕРОЙ (СВАЙПЫ) ---
-        function setupCameraInput() {
-            const zone = document.getElementById('camera-zone');
-            let startX, startY;
-
-            zone.addEventListener('touchstart', (e) => {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-            }, {passive: false});
-
-            zone.addEventListener('touchmove', (e) => {
+            // Камера (Свайп справа)
+            const camZone = document.getElementById('cam-zone');
+            let startX = 0, startY = 0;
+            camZone.addEventListener('touchstart', e => { startX=e.touches[0].clientX; startY=e.touches[0].clientY; }, {passive:false});
+            camZone.addEventListener('touchmove', e => {
                 e.preventDefault();
                 const dx = e.touches[0].clientX - startX;
                 const dy = e.touches[0].clientY - startY;
-
-                // Применяем настройки (инверсия и чувствительность)
-                const sens = 0.05 * Settings.camSens;
-                const dirX = Settings.invX ? -1 : 1;
-                const dirY = Settings.invY ? -1 : 1;
-
-                camPanX += dx * sens * dirX;
-                camPanZ += dy * sens * dirY;
-
-                // Ограничение дальности осмотра
-                camPanX = Math.max(-15, Math.min(15, camPanX));
-                camPanZ = Math.max(-15, Math.min(15, camPanZ));
-
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-            }, {passive: false});
-
-            zone.addEventListener('touchend', () => {
-                // Плавный возврат камеры (будет в animate)
-            });
+                camPan.x += dx * 0.05;
+                camPan.z += dy * 0.05;
+                startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+            }, {passive:false});
         }
 
-        // --- ДЖОЙСТИК ---
-        function setupControls() {
-            const container = document.getElementById('joy-container');
-            const stick = document.getElementById('joy-stick');
-            const handle = (e) => {
-                e.preventDefault();
-                const t = e.touches[0];
-                const r = container.getBoundingClientRect();
-                const dx = t.clientX - (r.left + 60);
-                const dy = t.clientY - (r.top + 60);
-                const d = Math.min(Math.sqrt(dx*dx+dy*dy), 50);
-                const a = Math.atan2(dy, dx);
-                stick.style.transform = `translate(calc(-50% + ${Math.cos(a)*d}px), calc(-50% + ${Math.sin(a)*d}px))`;
-                joyX = Math.cos(a)*(d/50); joyZ = Math.sin(a)*(d/50);
-                isMoving = true;
-            };
-            container.addEventListener('touchstart', handle, {passive:false});
-            container.addEventListener('touchmove', handle, {passive:false});
-            container.addEventListener('touchend', () => { 
-                isMoving = false; joyX = 0; joyZ = 0; 
-                stick.style.transform = 'translate(-50%, -50%)'; 
-            });
+        window.startRecall = (e) => {
+            e.preventDefault(); e.stopPropagation();
+            if(isRecalling || isMoving) return;
+            isRecalling = true;
+            document.getElementById('msg').style.display = 'block';
+            let t = 5;
+            document.getElementById('timer').innerText = t;
+            
+            const intv = setInterval(() => {
+                if(!isRecalling) { clearInterval(intv); return; }
+                t--;
+                document.getElementById('timer').innerText = t;
+                if(t<=0) {
+                    clearInterval(intv);
+                    player.position.set(SPAWN.x, 0, SPAWN.z);
+                    stopRecall();
+                }
+            }, 1000);
+            player.userData.recallInt = intv;
+        };
+
+        function stopRecall() {
+            isRecalling = false;
+            document.getElementById('msg').style.display = 'none';
+            if(player.userData.recallInt) clearInterval(player.userData.recallInt);
         }
 
-        // --- MINI MAP ---
-        function createMinimapDot(x, z, color) {
-            const dot = document.createElement('div');
-            dot.style.position = 'absolute'; dot.style.width = '4px'; dot.style.height = '4px';
-            dot.style.background = color; dot.style.borderRadius = '50%';
-            let mx = ((x + MAP_SIZE/2)/MAP_SIZE)*130;
-            let my = ((z + MAP_SIZE/2)/MAP_SIZE)*130;
-            dot.style.left = mx+'px'; dot.style.top = my+'px';
-            document.getElementById('minimap').appendChild(dot);
-        }
+        window.doAttack = (e) => {
+            e.preventDefault();
+            // Простая анимация увеличения
+            player.children[0].scale.set(1.2, 1.2, 1.2);
+            setTimeout(() => player.children[0].scale.set(1,1,1), 100);
+        };
 
         function animate() {
             requestAnimationFrame(animate);
-            if (!isRecalling && isMoving) player.update(joyX, joyZ, obstacles);
 
-            // Логика камеры: Снапбэк (возврат), если палец отпущен
-            // Если джойстик активен, камера тоже возвращается быстрее
-            if (!isMoving) { // Если стоим, позволяем смотреть
-                camPanX *= 0.95; // Медленный возврат
-                camPanZ *= 0.95;
-            } else {
-                camPanX *= 0.8; // Быстрый возврат при беге
-                camPanZ *= 0.8;
+            if(isMoving && !isRecalling) {
+                const speed = 0.15;
+                let nextX = player.position.x + joyX * speed;
+                let nextZ = player.position.z + joyZ * speed;
+
+                // Коллизия (простая)
+                let hit = false;
+                for(let o of obstacles) {
+                    const d = Math.sqrt((nextX-o.position.x)**2 + (nextZ-o.position.z)**2);
+                    if(d < 0.5 + o.userData.radius) hit = true;
+                }
+                if(Math.abs(nextX)>48 || Math.abs(nextZ)>48) hit = true;
+
+                if(!hit) {
+                    player.position.x = nextX;
+                    player.position.z = nextZ;
+                }
+                player.rotation.y = Math.atan2(joyX, joyZ);
             }
 
-            // Позиция камеры = Позиция героя + Базовый оффсет + Ручное смещение
-            camera.position.x = player.group.position.x + camBaseOffset.x + camPanX;
-            camera.position.y = camBaseOffset.y; // Высота фиксирована
-            camera.position.z = player.group.position.z + camBaseOffset.z + camPanZ;
-            
-            // Камера смотрит на точку чуть впереди героя + смещение
-            camera.lookAt(
-                player.group.position.x + camPanX, 
-                0, 
-                player.group.position.z + camPanZ
-            );
+            // Возврат камеры
+            if(!isMoving) { camPan.x *= 0.9; camPan.z *= 0.9; }
+            else { camPan.x *= 0.8; camPan.z *= 0.8; }
 
-            // Обновление мини-карты
-            const pDot = document.getElementById('minimap-player');
-            pDot.style.left = ((player.group.position.x + MAP_SIZE/2)/MAP_SIZE)*130 + 'px';
-            pDot.style.top = ((player.group.position.z + MAP_SIZE/2)/MAP_SIZE)*130 + 'px';
+            camera.position.set(player.position.x + camPan.x, camOffset.y, player.position.z + camOffset.z + camPan.z);
+            camera.lookAt(player.position.x + camPan.x, 0, player.position.z + camPan.z);
+
+            // Обновление миникарты
+            const pDot = document.getElementById('p-dot');
+            if(pDot) {
+                pDot.style.left = ((player.position.x+MAP_SIZE/2)/MAP_SIZE)*120 + 'px';
+                pDot.style.top = ((player.position.z+MAP_SIZE/2)/MAP_SIZE)*120 + 'px';
+            }
 
             renderer.render(scene, camera);
         }
 
         window.addEventListener('resize', () => {
-            if(camera){
-                camera.aspect = window.innerWidth / window.innerHeight;
+            if(camera) {
+                camera.aspect = window.innerWidth/window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
             }
