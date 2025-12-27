@@ -3,14 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MLBB Stable Build</title>
+    <title>MLBB: Debug Ready</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; user-select: none; }
+        body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: 'Segoe UI', sans-serif; user-select: none; }
         .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
         
+        /* DEBUG CONSOLE */
+        #debug-log {
+            position: absolute; top: 10px; left: 135px; width: 200px; max-height: 100px;
+            background: rgba(0,0,0,0.7); color: #0f0; font-family: monospace; font-size: 10px;
+            padding: 5px; border-radius: 4px; overflow-y: auto; z-index: 1000;
+            display: none; pointer-events: none; border: 1px solid #333;
+        }
+
         /* МЕНЮ */
         #menu-screen { background: radial-gradient(circle, #1b2735 0%, #000 100%); }
-        h1 { color: #f1c40f; font-size: 32px; text-transform: uppercase; letter-spacing: 3px; text-align: center; }
+        h1 { color: #f1c40f; font-size: 32px; letter-spacing: 3px; text-align: center; }
 
         /* ЗАГРУЗКА */
         #loading-screen { background: #000; display: none; z-index: 100; }
@@ -19,7 +27,7 @@
 
         /* НАСТРОЙКИ */
         #settings-screen { background: rgba(0,0,0,0.95); display: none; color: white; z-index: 150; }
-        .row { width: 280px; display: flex; justify-content: space-between; margin: 15px 0; font-size: 14px; }
+        .row { width: 280px; display: flex; justify-content: space-between; margin: 15px 0; font-size: 14px; align-items: center; }
         
         .btn {
             background: #2980b9; border: 2px solid #f1c40f; color: white; padding: 12px 30px;
@@ -38,6 +46,8 @@
 </head>
 <body>
 
+    <div id="debug-log"></div>
+
     <div id="menu-screen" class="screen">
         <h1>MOBA LEGENDS</h1>
         <button class="btn" onclick="showLoading()">ИГРАТЬ</button>
@@ -45,16 +55,17 @@
     </div>
 
     <div id="loading-screen" class="screen">
-        <h3 style="color:white">ЗАГРУЗКА...</h3>
+        <h3 style="color:white">ПОДГОТОВКА...</h3>
         <div class="bar"><div id="fill" class="fill"></div></div>
     </div>
 
     <div id="settings-screen" class="screen">
         <h2>НАСТРОЙКИ</h2>
+        <div class="row"><span>Debug Console:</span><input type="checkbox" id="debugToggle" onchange="updateDebugView()"></div>
         <div class="row"><span>Чувствительность:</span><input type="range" id="sens" min="0.5" max="3" step="0.1" value="1.5"></div>
         <div class="row"><span>Инверсия X:</span><input type="checkbox" id="invX"></div>
         <div class="row"><span>Инверсия Y:</span><input type="checkbox" id="invY"></div>
-        <button class="btn" onclick="toggleSets(false)">ГОТОВО</button>
+        <button class="btn" onclick="toggleSets(false)">СОХРАНИТЬ</button>
     </div>
 
     <div id="game-ui" class="screen">
@@ -71,6 +82,23 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
+        // --- СИСТЕМА ДЕБАГА ---
+        const debugConsole = document.getElementById('debug-log');
+        function log(msg, isError = false) {
+            const entry = document.createElement('div');
+            entry.style.color = isError ? '#ff4757' : '#2ed573';
+            entry.innerText = `> ${msg}`;
+            debugConsole.appendChild(entry);
+            debugConsole.scrollTop = debugConsole.scrollHeight;
+        }
+
+        window.onerror = (m, u, l) => log(`ERR: ${m} (Line ${l})`, true);
+
+        function updateDebugView() {
+            debugConsole.style.display = document.getElementById('debugToggle').checked ? 'block' : 'none';
+        }
+
+        // --- ИГРОВАЯ ЛОГИКА ---
         let scene, camera, renderer, player, obstacles = [];
         let isMoving = false, joyX = 0, joyZ = 0;
         let isRecalling = false, recallInterval;
@@ -82,6 +110,7 @@
         function showLoading() {
             document.getElementById('menu-screen').style.display = 'none';
             document.getElementById('loading-screen').style.display = 'flex';
+            log("Загрузка ресурсов...");
             let p = 0;
             let iv = setInterval(() => {
                 p += 10;
@@ -91,63 +120,64 @@
         }
 
         function init() {
-            cfg.sens = parseFloat(document.getElementById('sens').value);
-            cfg.invX = document.getElementById('invX').checked ? -1 : 1;
-            cfg.invY = document.getElementById('invY').checked ? -1 : 1;
-
-            document.getElementById('loading-screen').style.display = 'none';
-            document.getElementById('game-ui').style.display = 'block';
-
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x05080a);
-            scene.fog = new THREE.Fog(0x05080a, 15, 70);
-
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-
-            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-            let sun = new THREE.DirectionalLight(0xffffff, 0.8);
-            sun.position.set(10, 20, 10);
-            scene.add(sun);
-
-            // КАРТА
-            let ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({color: 0x1a261a}));
-            ground.rotation.x = -Math.PI/2;
-            scene.add(ground);
-
-            // Объекты
-            addBox(-40, 40, 5, 8, 0x1e3799, true); // База синих
-            addBox(40, -40, 5, 8, 0xb71540, true); // База красных
-
-            for(let i=0; i<40; i++) {
-                let rx = (Math.random()-0.5)*80, rz = (Math.random()-0.5)*80;
-                if(Math.abs(rx+rz) > 15) addBox(rx, rz, 1.5, 4, 0x2d3436, false);
-            }
-
-            // ГЕРОЙ (Безопасное создание)
-            player = new THREE.Group();
-            let pGeo;
             try {
-                pGeo = new THREE.CapsuleGeometry(0.5, 1, 4, 8); // Пробуем капсулу
+                cfg.sens = parseFloat(document.getElementById('sens').value);
+                cfg.invX = document.getElementById('invX').checked ? -1 : 1;
+                cfg.invY = document.getElementById('invY').checked ? -1 : 1;
+
+                document.getElementById('loading-screen').style.display = 'none';
+                document.getElementById('game-ui').style.display = 'block';
+
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x05080a);
+                scene.fog = new THREE.Fog(0x05080a, 15, 70);
+
+                camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                document.body.appendChild(renderer.domElement);
+
+                scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+                let sun = new THREE.DirectionalLight(0xffffff, 0.8);
+                sun.position.set(10, 20, 10);
+                scene.add(sun);
+
+                // Земля
+                let ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({color: 0x1a261a}));
+                ground.rotation.x = -Math.PI/2;
+                scene.add(ground);
+
+                addBox(-40, 40, 5, 8, 0x1e3799, true); 
+                addBox(40, -40, 5, 8, 0xb71540, true); 
+
+                for(let i=0; i<30; i++) {
+                    let rx = (Math.random()-0.5)*80, rz = (Math.random()-0.5)*80;
+                    if(Math.abs(rx+rz) > 15) addBox(rx, rz, 1.2, 3, 0x2d3436, false);
+                }
+
+                // Герой
+                player = new THREE.Group();
+                let pGeo;
+                try { pGeo = new THREE.CapsuleGeometry(0.5, 1, 4, 8); } 
+                catch(e) { pGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.5, 8); log("Capsule failed, using Cylinder"); }
+                
+                let pMesh = new THREE.Mesh(pGeo, new THREE.MeshStandardMaterial({color: 0x00a8ff}));
+                pMesh.position.y = 0.75;
+                player.add(pMesh);
+                scene.add(player);
+                player.position.set(-35, 0, 35);
+
+                let dot = document.createElement('div');
+                dot.id = "p-dot";
+                dot.style.cssText = "position:absolute; width:5px; height:5px; background:#0f0; border-radius:50%;";
+                document.getElementById('minimap').appendChild(dot);
+
+                setupControls();
+                log("Игра запущена успешно!");
+                animate();
             } catch(e) {
-                pGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.5, 8); // Если нет - обычный цилиндр
+                log("Критическая ошибка инициализации: " + e.message, true);
             }
-            let pMesh = new THREE.Mesh(pGeo, new THREE.MeshStandardMaterial({color: 0x00a8ff}));
-            pMesh.position.y = 0.75;
-            player.add(pMesh);
-            scene.add(player);
-            player.position.set(-35, 0, 35);
-
-            // Точка на карте
-            let dot = document.createElement('div');
-            dot.id = "p-dot";
-            dot.style.cssText = "position:absolute; width:5px; height:5px; background:#0f0; border-radius:50%;";
-            document.getElementById('minimap').appendChild(dot);
-
-            setupControls();
-            animate();
         }
 
         function addBox(x, z, r, h, col, isBase) {
@@ -175,7 +205,8 @@
                 joyX = Math.cos(a); joyZ = Math.sin(a); isMoving = true;
                 if(isRecalling) stopRecall();
             };
-            jb.addEventListener('touchstart', move); jb.addEventListener('touchmove', move);
+            jb.addEventListener('touchstart', move); 
+            jb.addEventListener('touchmove', move);
             jb.addEventListener('touchend', () => { isMoving = false; joyX=0; joyZ=0; js.style.transform='translate(-50%,-50%)'; });
 
             let cz = document.getElementById('cam-zone'), sX, sY;
@@ -189,16 +220,21 @@
 
         function doRecall() {
             if(isRecalling || isMoving) return;
+            log("Запуск возвращения...");
             isRecalling = true;
             document.getElementById('msg').style.display = 'block';
             let t = 5;
             document.getElementById('timer').innerText = t;
             recallInterval = setInterval(() => {
                 t--; document.getElementById('timer').innerText = t;
-                if(t <= 0) { player.position.set(-35, 0, 35); stopRecall(); }
+                if(t <= 0) { player.position.set(-35, 0, 35); stopRecall(); log("Возврат завершен"); }
             }, 1000);
         }
-        function stopRecall() { isRecalling = false; clearInterval(recallInterval); document.getElementById('msg').style.display = 'none'; }
+        function stopRecall() { 
+            if(isRecalling) log("Возврат прерван");
+            isRecalling = false; clearInterval(recallInterval); 
+            document.getElementById('msg').style.display = 'none'; 
+        }
 
         function animate() {
             requestAnimationFrame(animate);
