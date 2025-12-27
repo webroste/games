@@ -2,112 +2,108 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Mobile Minecraft Clone</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Mobile Legends Clone JS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { margin: 0; overflow: hidden; background: #87CEEB; touch-action: none; font-family: sans-serif; }
-        canvas { display: block; }
-
-        /* Заглушка для поворота экрана */
-        #rotate-overlay {
-            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #1a1a1a; color: white; z-index: 9999;
-            flex-direction: column; justify-content: center; align-items: center;
+        body { margin: 0; overflow: hidden; background: #0b1116; touch-action: none; font-family: sans-serif; }
+        
+        /* Стили кнопок умений (как в MLBB) */
+        #ability-container {
+            position: absolute; bottom: 30px; right: 30px;
+            display: grid; grid-template-areas: ". a ." "s . u"; gap: 15px;
         }
-        @media (orientation: portrait) { #rotate-overlay { display: flex; } }
-
-        /* Прицел */
-        #crosshair {
-            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px;
-            color: white; transform: translate(-50%, -50%); font: 24px Arial;
-            pointer-events: none; opacity: 0.8;
+        .skill {
+            width: 70px; height: 70px; background: rgba(0,0,0,0.6); 
+            border: 2px solid #cd9d1d; border-radius: 50%; color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; pointer-events: auto; box-shadow: 0 0 10px rgba(205,157,29,0.5);
         }
+        .attack { width: 90px; height: 90px; background: rgba(205,157,29,0.4); font-size: 16px; font-weight: bold; }
 
         /* Джойстик */
-        #joystick-wrapper {
-            position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px;
-            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 50%; touch-action: none;
+        #joy-bg {
+            position: absolute; bottom: 50px; left: 50px; width: 120px; height: 120px;
+            background: rgba(255,255,255,0.1); border-radius: 50%; border: 1px solid rgba(255,255,255,0.3);
         }
-        #joystick-stick {
+        #joy-stick {
             position: absolute; top: 50%; left: 50%; width: 50px; height: 50px;
-            background: rgba(255, 255, 255, 0.4); border-radius: 50%;
-            transform: translate(-50%, -50%); pointer-events: none;
+            background: #fff; opacity: 0.5; border-radius: 50%; transform: translate(-50%, -50%);
         }
     </style>
 </head>
 <body>
 
-    <div id="rotate-overlay">
-        <div style="font-size: 40px; margin-bottom: 10px;">🔄</div>
-        <div>Поверни телефон горизонтально</div>
-    </div>
+    <div id="joy-bg"><div id="joy-stick"></div></div>
 
-    <div id="crosshair">+</div>
-
-    <div id="joystick-wrapper">
-        <div id="joystick-stick"></div>
+    <div id="ability-container">
+        <div class="skill" style="grid-area: a;" onclick="castSkill('1')">S1</div>
+        <div class="skill" style="grid-area: s;" onclick="castSkill('2')">S2</div>
+        <div class="skill attack" style="grid-area: u;" onclick="castSkill('Attack')">ATK</div>
     </div>
 
     <script type="module">
         import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
 
-        // --- 1. НАСТРОЙКА МИРА ---
+        // --- ИНИЦИАЛИЗАЦИЯ ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        scene.background = new THREE.Color(0x102010); // Цвет травы
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 15, 10); 
+        camera.lookAt(0, 0, -2);
+
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        const light = new THREE.AmbientLight(0xffffff, 0.7);
-        scene.add(light);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
         const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-        sun.position.set(10, 20, 10);
+        sun.position.set(5, 10, 5);
         scene.add(sun);
 
-        // Генерация пола
-        const boxGeo = new THREE.BoxGeometry(1, 1, 1);
-        const grassMat = new THREE.MeshStandardMaterial({ color: 0x4caf50 });
-        for(let x = -15; x < 15; x++) {
-            for(let z = -15; z < 15; z++) {
-                const block = new THREE.Mesh(boxGeo, grassMat);
-                block.position.set(x, 0, z);
-                scene.add(block);
-            }
-        }
-        camera.position.y = 2;
+        // --- ГЕРОЙ И КАРТА ---
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x1a331a }));
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
 
-        // --- 2. УПРАВЛЕНИЕ (ДЖОЙСТИК) ---
-        const stick = document.getElementById('joystick-stick');
-        const wrapper = document.getElementById('joystick-wrapper');
+        // Герой (Синий цилиндр)
+        const hero = new THREE.Mesh(
+            new THREE.CapsuleGeometry(0.5, 1, 4, 8),
+            new THREE.MeshStandardMaterial({ color: 0x0088ff })
+        );
+        hero.position.y = 1;
+        scene.add(hero);
+
+        // Враг (Красный куб)
+        const enemy = new THREE.Mesh(
+            new THREE.BoxGeometry(1.5, 1.5, 1.5),
+            new THREE.MeshStandardMaterial({ color: 0xff4444 })
+        );
+        enemy.position.set(5, 0.75, -5);
+        scene.add(enemy);
+
+        // --- УПРАВЛЕНИЕ (ДЖОЙСТИК) ---
+        const stick = document.getElementById('joy-stick');
+        const joyBg = document.getElementById('joy-bg');
         let moveX = 0, moveZ = 0, isMoving = false;
 
-        wrapper.addEventListener('touchstart', (e) => { 
-            isMoving = true; 
-            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
-        });
-
+        joyBg.addEventListener('touchstart', (e) => { isMoving = true; });
         document.addEventListener('touchmove', (e) => {
             if (!isMoving) return;
-            const touch = Array.from(e.touches).find(t => t.target === wrapper || wrapper.contains(t.target));
+            const touch = Array.from(e.touches).find(t => t.target === joyBg || joyBg.contains(t.target));
             if (!touch) return;
 
-            const rect = wrapper.getBoundingClientRect();
+            const rect = joyBg.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
-            
-            let dx = touch.clientX - centerX;
-            let dy = touch.clientY - centerY;
+            const dx = touch.clientX - centerX;
+            const dy = touch.clientY - centerY;
             const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
             const angle = Math.atan2(dy, dx);
 
             stick.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
             
-            moveX = (Math.cos(angle) * dist) / 50;
-            moveZ = (Math.sin(angle) * dist) / 50;
+            moveX = Math.cos(angle) * (dist / 50);
+            moveZ = Math.sin(angle) * (dist / 50);
         });
 
         document.addEventListener('touchend', () => {
@@ -116,44 +112,30 @@
             moveX = 0; moveZ = 0;
         });
 
-        // --- 3. ВРАЩЕНИЕ КАМЕРЫ ---
-        let lon = 0, lat = 0;
-        let startX, startY;
-        
-        document.addEventListener('touchstart', (e) => {
-            if (e.target.id === 'joystick-wrapper') return;
-            startX = e.touches[0].clientX;
-            startY = e.touches[0].clientY;
-        });
+        // --- БОЕВАЯ ЛОГИКА ---
+        window.castSkill = (type) => {
+            console.log("Cast:", type);
+            hero.material.emissive.setHex(0x00ff00); // Подсветка при клике
+            setTimeout(() => hero.material.emissive.setHex(0x000000), 100);
+        };
 
-        document.addEventListener('touchmove', (e) => {
-            const touch = e.touches[e.touches.length - 1];
-            if (touch.clientX < 200 && touch.clientY > window.innerHeight - 200) return; // Игнорим зону джойстика
-
-            const dx = touch.clientX - startX;
-            const dy = touch.clientY - startY;
-            startX = touch.clientX;
-            startY = touch.clientY;
-
-            lon -= dx * 0.2;
-            lat = Math.max(-85, Math.min(85, lat + dy * 0.2));
-        });
-
-        // --- 4. ЦИКЛ ИГРЫ ---
+        // --- ЦИКЛ ИГРЫ ---
         function animate() {
             requestAnimationFrame(animate);
 
             if (moveX !== 0 || moveZ !== 0) {
-                const speed = 0.12;
-                const yaw = camera.rotation.y;
-                // Движение вперед/назад и влево/вправо относительно взгляда
-                camera.position.x += (Math.cos(yaw) * moveX + Math.sin(yaw) * moveZ) * speed;
-                camera.position.z += (Math.sin(yaw) * -moveX + Math.cos(yaw) * moveZ) * speed;
+                const speed = 0.15;
+                hero.position.x += moveX * speed;
+                hero.position.z += moveZ * speed;
+                
+                // Поворот героя в сторону движения
+                const angle = Math.atan2(moveX, moveZ);
+                hero.rotation.y = angle;
             }
 
-            camera.rotation.order = "YXZ";
-            camera.rotation.y = lon * Math.PI / 180;
-            camera.rotation.x = lat * Math.PI / 180;
+            // Камера плавно следит за героем
+            camera.position.x += (hero.position.x - camera.position.x) * 0.1;
+            camera.position.z += (hero.position.z + 10 - camera.position.z) * 0.1;
 
             renderer.render(scene, camera);
         }
