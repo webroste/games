@@ -3,257 +3,528 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MLBB: Pro Edition</title>
+    <title>MOBA Legends: Hardcore Edition</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; user-select: none; }
-        .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
-        
-        /* КОНСОЛЬ */
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+            touch-action: none; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            user-select: none; 
+            -webkit-user-select: none;
+        }
+
+        /* УЛУЧШЕННАЯ ДЕБАГ-КОНСОЛЬ */
         #debug-log {
-            position: absolute; top: 10px; left: 10px; width: 250px; max-height: 150px;
-            background: rgba(0,0,0,0.9); color: #00ff00; font-family: monospace; font-size: 11px;
-            padding: 10px; border-radius: 5px; overflow-y: auto; z-index: 1000;
-            display: none; pointer-events: none; border: 1px solid #444;
+            position: absolute; 
+            top: 10px; 
+            left: 10px; 
+            width: 280px; 
+            max-height: 200px;
+            background: rgba(0, 0, 0, 0.85); 
+            color: #00ffcc; 
+            font-family: 'Consolas', monospace; 
+            font-size: 11px;
+            padding: 12px; 
+            border-radius: 8px; 
+            overflow-y: auto; 
+            z-index: 10000;
+            display: none; 
+            border: 1px solid #00ffcc;
+            pointer-events: none;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
         }
 
-        /* МЕНЮ */
-        #menu-screen { background: radial-gradient(circle, #0f172a, #000); }
-        h1 { color: #f1c40f; font-size: 36px; text-shadow: 0 0 20px #f1c40f; margin-bottom: 30px; }
-        
-        #debug-toggle { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #fff; padding: 10px 15px; border-radius: 5px; cursor: pointer; z-index: 1100; pointer-events: auto; }
+        .screen { 
+            position: absolute; 
+            inset: 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 10; 
+        }
 
-        /* НАСТРОЙКИ */
-        #settings-screen { background: #000; display: none; color: white; z-index: 600; }
-        .s-row { width: 300px; display: flex; justify-content: space-between; align-items: center; margin: 20px 0; }
+        /* МЕНЮ И НАСТРОЙКИ */
+        #menu-screen { 
+            background: radial-gradient(circle at center, #1e3a8a, #000); 
+        }
         
+        #settings-screen { 
+            background: rgba(10, 10, 10, 0.95); 
+            display: none; 
+            color: white; 
+            z-index: 1000; 
+        }
+
+        h1 { 
+            color: #fbbf24; 
+            font-size: 42px; 
+            text-transform: uppercase; 
+            letter-spacing: 4px;
+            text-shadow: 0 0 30px rgba(251, 191, 36, 0.5);
+            margin-bottom: 40px;
+        }
+
         .btn {
-            background: linear-gradient(to bottom, #1e40af, #3b82f6); border: 2px solid #f1c40f;
-            color: white; padding: 15px 40px; font-size: 18px; font-weight: bold; border-radius: 10px; cursor: pointer; margin: 10px;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            border: 2px solid #fbbf24;
+            color: white;
+            padding: 16px 50px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 12px;
+            cursor: pointer;
+            margin: 12px;
+            transition: transform 0.1s, box-shadow 0.1s;
+            text-transform: uppercase;
+        }
+        .btn:active { transform: scale(0.95); box-shadow: 0 0 20px rgba(37, 99, 235, 0.4); }
+
+        #debug-toggle-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 30px;
+            z-index: 10001;
+            cursor: pointer;
         }
 
-        /* ИГРА */
+        /* ИГРОВОЙ ИНТЕРФЕЙС */
         #game-ui { display: none; pointer-events: none; }
-        
-        #minimap-container { 
-            position: absolute; top: 15px; left: 15px; width: 120px; height: 120px; 
-            background: rgba(0,20,0,0.8); border: 2px solid #555; border-radius: 8px; overflow: hidden;
-        }
-        #minimap-player { position: absolute; width: 6px; height: 6px; background: #fff; border-radius: 50%; z-index: 5; }
 
-        #joy-base { position: absolute; bottom: 40px; left: 40px; width: 110px; height: 110px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; pointer-events: auto; }
-        #joy-stick { position: absolute; top: 50%; left: 50%; width: 45px; height: 45px; background: #fff; border-radius: 50%; transform: translate(-50%, -50%); opacity: 0.6; }
-        
-        #recall-btn { 
-            position: absolute; bottom: 45px; right: 45px; width: 70px; height: 70px; 
-            border-radius: 50%; background: #4338ca; border: 3px solid #fff; 
-            color: white; display: flex; align-items: center; justify-content: center; 
-            font-size: 30px; pointer-events: auto; box-shadow: 0 0 20px rgba(67, 56, 202, 0.6);
+        #minimap-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 140px;
+            height: 140px;
+            background: rgba(0, 15, 0, 0.8);
+            border: 2px solid #334155;
+            border-radius: 12px;
+            overflow: hidden;
+            pointer-events: auto;
+        }
+        #minimap-canvas { width: 100%; height: 100%; }
+
+        #joy-base {
+            position: absolute;
+            bottom: 50px;
+            left: 50px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 3px solid rgba(255, 255, 255, 0.15);
+            border-radius: 60px;
+            pointer-events: auto;
+        }
+        #joy-stick {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle, #fff, #94a3b8);
+            border-radius: 25px;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
 
-        #msg { position: absolute; bottom: 180px; width: 100%; text-align: center; color: #22d3ee; font-size: 24px; font-weight: bold; display: none; text-shadow: 0 2px 10px #000; }
+        /* ИСПРАВЛЕННАЯ КНОПКА ВОЗВРАТА */
+        #recall-btn {
+            position: absolute;
+            bottom: 60px;
+            right: 60px;
+            width: 75px;
+            height: 75px;
+            background: linear-gradient(135deg, #4338ca, #312e81);
+            border: 3px solid #e0e7ff;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: white;
+            pointer-events: auto;
+            cursor: pointer;
+            box-shadow: 0 0 25px rgba(67, 56, 202, 0.5);
+            transition: all 0.1s;
+            z-index: 500;
+        }
+        #recall-btn:active { transform: scale(0.85); box-shadow: 0 0 10px rgba(67, 56, 202, 0.8); }
+
+        #recall-msg {
+            position: absolute;
+            bottom: 180px;
+            width: 100%;
+            text-align: center;
+            color: #22d3ee;
+            font-size: 26px;
+            font-weight: bold;
+            display: none;
+            text-shadow: 0 0 15px #000;
+            letter-spacing: 2px;
+        }
+
+        .s-row { width: 320px; display: flex; justify-content: space-between; align-items: center; margin: 20px 0; font-size: 18px; }
+        input[type=range] { width: 150px; }
     </style>
 </head>
 <body>
 
     <div id="debug-log"></div>
-    <div id="debug-toggle" onclick="toggleDebug()">DEBUG</div>
+    <div id="debug-toggle-btn" onclick="toggleDebug()">CONSOLE: OFF</div>
 
     <div id="menu-screen" class="screen">
         <h1>MOBA LEGENDS</h1>
-        <button class="btn" onclick="initGame()">ИГРАТЬ</button>
+        <button class="btn" onclick="startGame()">В БОЙ</button>
         <button class="btn" onclick="toggleSettings(true)">НАСТРОЙКИ</button>
     </div>
 
     <div id="settings-screen" class="screen">
-        <h2>НАСТРОЙКИ</h2>
-        <div class="s-row"><span>Чувствительность:</span><input type="range" id="sens" min="0.5" max="3" step="0.1" value="1.5"></div>
-        <button class="btn" onclick="toggleSettings(false)">ГОТОВО</button>
+        <h2>НАСТРОЙКИ ИГРЫ</h2>
+        <div class="s-row">
+            <span>Чувствительность</span>
+            <input type="range" id="sens-input" min="0.5" max="4" step="0.1" value="1.8">
+        </div>
+        <button class="btn" onclick="toggleSettings(false)">СОХРАНИТЬ</button>
     </div>
 
     <div id="game-ui" class="screen">
-        <div id="minimap-container"><div id="minimap-player"></div></div>
+        <div id="minimap-container">
+            <canvas id="minimap-canvas"></canvas>
+        </div>
+        
         <div id="joy-base"><div id="joy-stick"></div></div>
-        <div id="msg">ВОЗВРАЩЕНИЕ... <span id="timer">5</span></div>
-        <div id="recall-btn" onclick="doRecall()">🏠</div>
-        <div id="cam-zone" style="position:absolute; right:0; top:0; width:60%; height:100%; pointer-events:auto;"></div>
+        
+        <div id="recall-msg">ВОЗВРАЩЕНИЕ... <span id="recall-timer">5</span></div>
+        <div id="recall-btn">🏠</div>
+        
+        <div id="cam-touch-area" style="position:absolute; right:0; top:0; width:65%; height:100%; pointer-events:auto;"></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        const logBox = document.getElementById('debug-log');
-        let isDebug = false;
-        function log(m) { 
-            console.log(m);
-            if(isDebug) {
-                const d = document.createElement('div');
-                d.innerText = "> " + m;
-                logBox.appendChild(d);
-                logBox.scrollTop = logBox.scrollHeight;
-            }
+        // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
+        let scene, camera, renderer, player, recallEffect;
+        let obstacles = [];
+        let isMoving = false, joyVec = { x: 0, z: 0 };
+        let isRecalling = false, recallInterval;
+        let camOffset = { x: 0, z: 0 };
+        let config = { sensitivity: 1.8 };
+        
+        const debugLog = document.getElementById('debug-log');
+        let debugActive = false;
+
+        // --- ЛОГИРОВАНИЕ ---
+        function log(msg, type = 'info') {
+            const time = new Date().toLocaleTimeString().split(' ')[0];
+            const entry = document.createElement('div');
+            entry.style.color = type === 'err' ? '#ff4757' : (type === 'warn' ? '#ffa502' : '#2ed573');
+            entry.innerText = `[${time}] ${msg}`;
+            debugLog.appendChild(entry);
+            debugLog.scrollTop = debugLog.scrollHeight;
+            console.log(`[GAME]: ${msg}`);
         }
-        function toggleDebug() { isDebug = !isDebug; logBox.style.display = isDebug ? 'block' : 'none'; log("Дебаг активен"); }
 
-        let scene, camera, renderer, player, recallFx, obstacles = [];
-        let moveX = 0, moveZ = 0, isMoving = false;
-        let recalling = false, recallInt;
-        let camDelta = { x: 0, z: 0 };
-        let sensitivity = 1.5;
+        function toggleDebug() {
+            debugActive = !debugActive;
+            debugLog.style.display = debugActive ? 'block' : 'none';
+            document.getElementById('debug-toggle-btn').innerText = `CONSOLE: ${debugActive ? 'ON' : 'OFF'}`;
+            log(debugActive ? "Консоль включена" : "Консоль выключена");
+        }
 
-        function toggleSettings(show) { document.getElementById('settings-screen').style.display = show ? 'flex' : 'none'; }
+        function toggleSettings(show) {
+            document.getElementById('settings-screen').style.display = show ? 'flex' : 'none';
+        }
 
-        function initGame() {
-            sensitivity = parseFloat(document.getElementById('sens').value);
+        // --- ИНИЦИАЛИЗАЦИЯ ИГРЫ ---
+        function startGame() {
+            log("Запуск игрового движка...");
+            config.sensitivity = parseFloat(document.getElementById('sens-input').value);
             document.getElementById('menu-screen').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
+            initThree();
+        }
 
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a0a0a);
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
-            
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            document.body.appendChild(renderer.domElement);
+        function initThree() {
+            try {
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x020617);
+                scene.fog = new THREE.Fog(0x020617, 20, 150);
 
-            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambient);
-            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-            sun.position.set(20, 50, 20);
-            scene.add(sun);
+                camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                document.body.appendChild(renderer.domElement);
 
-            // КАРТА
-            const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({color: 0x141e14}));
-            ground.rotation.x = -Math.PI/2;
+                const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+                scene.add(ambient);
+                const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+                sun.position.set(50, 100, 50);
+                scene.add(sun);
+
+                buildWorld();
+                spawnPlayer();
+                initControls();
+                
+                log("Инициализация завершена успешно!");
+                animate();
+            } catch (e) {
+                log("КРИТИЧЕСКАЯ ОШИБКА: " + e.message, 'err');
+            }
+        }
+
+        function buildWorld() {
+            // Пол
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(500, 500), 
+                new THREE.MeshStandardMaterial({ color: 0x14532d })
+            );
+            ground.rotation.x = -Math.PI / 2;
             scene.add(ground);
 
-            const river = new THREE.Mesh(new THREE.PlaneGeometry(45, 400), new THREE.MeshStandardMaterial({color: 0x0ea5e9, transparent: true, opacity: 0.6}));
-            river.rotation.x = -Math.PI/2; river.position.y = 0.1;
+            // Река (MLBB Style - 90 градусов)
+            const river = new THREE.Mesh(
+                new THREE.PlaneGeometry(50, 500),
+                new THREE.MeshStandardMaterial({ color: 0x0369a1, transparent: true, opacity: 0.7 })
+            );
+            river.rotation.x = -Math.PI / 2;
+            river.position.y = 0.1;
             scene.add(river);
 
-            // БАШНИ И БАЗЫ
-            createBuilding(-170, 170, 0x0066ff, 12); // База Синих
-            createBuilding(170, -170, 0xff0000, 12); // База Красных
-            
-            // Башни на миду
-            for(let i=1; i<=3; i++) {
-                createTower(-45 - (i*30), 45 + (i*30), 0x0066ff);
-                createTower(45 + (i*30), -45 - (i*30), 0xff0000);
+            // Башни на Миду
+            for(let i = 1; i <= 3; i++) {
+                addTower(-40 - (i*35), 40 + (i*35), 0x2563eb); // Синие
+                addTower(40 + (i*35), -40 - (i*35), 0xdc2626); // Красные
             }
 
-            // ГЕРОЙ (БЕЗ CAPSULE GEOMETRY)
+            // Базы
+            addFortress(-180, 180, 0x1d4ed8);
+            addFortress(180, -180, 0xb91c1c);
+            
+            log("Мир построен: Река, Базы, 6 Башен");
+        }
+
+        function addTower(x, z, color) {
+            const g = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(2, 3, 12, 8), new THREE.MeshStandardMaterial({color: 0x334155}));
+            const head = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshStandardMaterial({color: color, emissive: color}));
+            head.position.y = 7;
+            g.add(body); g.add(head);
+            g.position.set(x, 6, z);
+            scene.add(g);
+            obstacles.push({ x, z, r: 4, color });
+        }
+
+        function addFortress(x, z, color) {
+            const b = new THREE.Mesh(new THREE.BoxGeometry(12, 18, 12), new THREE.MeshStandardMaterial({color: 0x1e293b}));
+            const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(5), new THREE.MeshStandardMaterial({color: color, emissive: color}));
+            crystal.position.y = 12;
+            b.add(crystal);
+            b.position.set(x, 9, z);
+            scene.add(b);
+            obstacles.push({ x, z, r: 10, color });
+        }
+
+        function spawnPlayer() {
             player = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 2.2, 12), new THREE.MeshStandardMaterial({color: 0x06b6d4}));
-            body.position.y = 1.1;
+            
+            // Безопасное создание геометрии
+            let bodyGeo;
+            if (typeof THREE.CapsuleGeometry !== 'undefined') {
+                bodyGeo = new THREE.CapsuleGeometry(0.7, 1.2, 4, 8);
+            } else {
+                log("CapsuleGeometry не найден, использую Cylinder", 'warn');
+                bodyGeo = new THREE.CylinderGeometry(0.7, 0.7, 2.4, 12);
+            }
+
+            const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({ color: 0x0ea5e9 }));
+            body.position.y = 1.2;
             player.add(body);
-            const sword = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.8, 0.2), new THREE.MeshStandardMaterial({color: 0xffffff}));
-            sword.position.set(0.8, 1.5, 0.5); sword.rotation.x = 0.5;
+
+            // Меч
+            const sword = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3, 0.2), new THREE.MeshStandardMaterial({ color: 0xf8fafc }));
+            sword.position.set(0.9, 1.5, 0.6);
+            sword.rotation.x = 0.4;
             player.add(sword);
 
-            recallFx = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 30, 16, 1, true), new THREE.MeshBasicMaterial({color: 0x22d3ee, transparent: true, opacity: 0, side: THREE.DoubleSide}));
-            recallFx.position.y = 15;
-            player.add(recallFx);
+            // Эффект возвращения
+            recallEffect = new THREE.Mesh(
+                new THREE.CylinderGeometry(3, 3, 40, 16, 1, true),
+                new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0, side: THREE.DoubleSide })
+            );
+            recallEffect.position.y = 20;
+            player.add(recallEffect);
 
             scene.add(player);
-            player.position.set(-150, 0, 150);
-
-            setupControls();
-            log("Мир загружен успешно");
-            animate();
+            player.position.set(-165, 0, 165);
+            log("Герой заспавнен на базе");
         }
 
-        function createTower(x, z, col) {
-            const g = new THREE.Group();
-            const b = new THREE.Mesh(new THREE.CylinderGeometry(2, 2.5, 9, 8), new THREE.MeshStandardMaterial({color: 0x334155}));
-            const top = new THREE.Mesh(new THREE.SphereGeometry(1.6), new THREE.MeshStandardMaterial({color: col}));
-            top.position.y = 5.5; g.add(b); g.add(top); g.position.set(x, 4.5, z);
-            scene.add(g); obstacles.push({x, z, r: 4});
-            addMinimapIcon(x, z, col);
-        }
-
-        function createBuilding(x, z, col, s) {
-            const b = new THREE.Mesh(new THREE.BoxGeometry(s, s*1.5, s), new THREE.MeshStandardMaterial({color: 0x1e293b}));
-            const c = new THREE.Mesh(new THREE.OctahedronGeometry(s/2), new THREE.MeshStandardMaterial({color: col}));
-            c.position.y = s; b.add(c); b.position.set(x, s*0.75, z);
-            scene.add(b); obstacles.push({x, z, r: s/1.5});
-            addMinimapIcon(x, z, col, true);
-        }
-
-        function addMinimapIcon(x, z, col, big) {
-            const icon = document.createElement('div');
-            const size = big ? 8 : 4;
-            const hex = col === 0x0066ff ? '#00f' : '#f00';
-            icon.style.cssText = `position:absolute; width:${size}px; height:${size}px; background:${hex}; left:${((x+200)/400)*120}px; top:${((z+200)/400)*120}px; border:1px solid #fff;`;
-            document.getElementById('minimap-container').appendChild(icon);
-        }
-
-        function setupControls() {
+        // --- УПРАВЛЕНИЕ ---
+        function initControls() {
             const jBase = document.getElementById('joy-base'), jStick = document.getElementById('joy-stick');
-            const handleMove = (e) => {
+            
+            const handleJoy = (e) => {
                 e.preventDefault();
                 const t = e.touches ? e.touches[0] : e;
-                const r = jBase.getBoundingClientRect();
-                const dx = t.clientX - (r.left + 55), dy = t.clientY - (r.top + 55);
-                const d = Math.min(Math.sqrt(dx*dx+dy*dy), 45);
-                const a = Math.atan2(dy, dx);
-                jStick.style.transform = `translate(calc(-50% + ${Math.cos(a)*d}px), calc(-50% + ${Math.sin(a)*d}px))`;
-                moveX = Math.cos(a); moveZ = Math.sin(a); isMoving = true;
-                if(recalling) stopRecall();
+                const rect = jBase.getBoundingClientRect();
+                const dx = t.clientX - (rect.left + 60), dy = t.clientY - (rect.top + 60);
+                const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
+                const angle = Math.atan2(dy, dx);
+                
+                jStick.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
+                joyVec = { x: Math.cos(angle), z: Math.sin(angle) };
+                isMoving = true;
+                if(isRecalling) cancelRecall();
             };
-            jBase.addEventListener('touchstart', handleMove); jBase.addEventListener('touchmove', handleMove);
-            window.addEventListener('touchend', () => { isMoving = false; jStick.style.transform='translate(-50%,-50%)'; });
 
-            const camZone = document.getElementById('cam-zone');
-            let lastX, lastY;
-            camZone.addEventListener('touchstart', e => { lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; });
-            camZone.addEventListener('touchmove', e => {
-                camDelta.x += (e.touches[0].clientX - lastX) * 0.04 * sensitivity;
-                camDelta.z += (e.touches[0].clientY - lastY) * 0.04 * sensitivity;
-                lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+            jBase.addEventListener('touchstart', handleJoy);
+            jBase.addEventListener('touchmove', handleJoy);
+            window.addEventListener('touchend', () => {
+                isMoving = false;
+                jStick.style.transform = 'translate(-50%, -50%)';
             });
+
+            // Камера
+            const camArea = document.getElementById('cam-touch-area');
+            let lastX, lastY;
+            camArea.addEventListener('touchstart', e => {
+                lastX = e.touches[0].clientX;
+                lastY = e.touches[0].clientY;
+            });
+            camArea.addEventListener('touchmove', e => {
+                const dx = e.touches[0].clientX - lastX;
+                const dy = e.touches[0].clientY - lastY;
+                camOffset.x += dx * 0.05 * config.sensitivity;
+                camOffset.z += dy * 0.05 * config.sensitivity;
+                lastX = e.touches[0].clientX;
+                lastY = e.touches[0].clientY;
+            });
+
+            // КНОПКА ВОЗВРАТА (ИСПРАВЛЕНО)
+            const rBtn = document.getElementById('recall-btn');
+            const recallTrigger = (e) => {
+                e.preventDefault();
+                log("Кнопка возврата нажата");
+                if (!isRecalling && !isMoving) {
+                    startRecall();
+                } else if (isMoving) {
+                    log("Возврат невозможен: герой в движении", 'warn');
+                }
+            };
+            rBtn.addEventListener('touchstart', recallTrigger);
+            rBtn.addEventListener('mousedown', recallTrigger);
         }
 
-        function doRecall() {
-            if(recalling || isMoving) return;
-            log("Запуск возвращения...");
-            recalling = true;
-            document.getElementById('msg').style.display = 'block';
-            recallFx.material.opacity = 0.5;
-            let count = 5; document.getElementById('timer').innerText = count;
-            recallInt = setInterval(() => {
-                count--; document.getElementById('timer').innerText = count;
-                if(count <= 0) { player.position.set(-150, 0, 150); stopRecall(); }
+        // --- ЛОГИКА ВОЗВРАЩЕНИЯ ---
+        function startRecall() {
+            log("Начало телепортации...");
+            isRecalling = true;
+            document.getElementById('recall-msg').style.display = 'block';
+            recallEffect.material.opacity = 0.5;
+            
+            let timeLeft = 5;
+            document.getElementById('recall-timer').innerText = timeLeft;
+            
+            recallInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('recall-timer').innerText = timeLeft;
+                log(`Телепортация: ${timeLeft}сек...`);
+                
+                if (timeLeft <= 0) {
+                    player.position.set(-165, 0, 165);
+                    log("Герой вернулся на базу!");
+                    cancelRecall();
+                }
             }, 1000);
         }
 
-        function stopRecall() { 
-            recalling = false; clearInterval(recallInt); 
-            document.getElementById('msg').style.display = 'none'; 
-            recallFx.material.opacity = 0;
+        function cancelRecall() {
+            if(!isRecalling) return;
+            log("Возврат прерван");
+            isRecalling = false;
+            clearInterval(recallInterval);
+            document.getElementById('recall-msg').style.display = 'none';
+            recallEffect.material.opacity = 0;
         }
 
+        // --- МИНИКАРТА ---
+        function updateMinimap() {
+            const canvas = document.getElementById('minimap-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 140; canvas.height = 140;
+
+            ctx.fillStyle = 'rgba(0, 20, 0, 0.5)';
+            ctx.fillRect(0, 0, 140, 140);
+
+            // Башни
+            obstacles.forEach(o => {
+                ctx.fillStyle = o.color === 0x2563eb ? '#2563eb' : '#dc2626';
+                const mx = ((o.x + 250) / 500) * 140;
+                const mz = ((o.z + 250) / 500) * 140;
+                ctx.fillRect(mx-3, mz-3, 6, 6);
+            });
+
+            // Игрок
+            ctx.fillStyle = '#ffffff';
+            const px = ((player.position.x + 250) / 500) * 140;
+            const pz = ((player.position.z + 250) / 500) * 140;
+            ctx.beginPath();
+            ctx.arc(px, pz, 4, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        // --- ЦИКЛ РЕНДЕРА ---
         function animate() {
             requestAnimationFrame(animate);
-            if(isMoving && !recalling) {
-                let nX = player.position.x + moveX * 0.18;
-                let nZ = player.position.z + moveZ * 0.18;
+            
+            if (isMoving && !isRecalling) {
+                const speed = 0.2;
+                const nextX = player.position.x + joyVec.x * speed;
+                const nextZ = player.position.z + joyVec.z * speed;
+                
                 let collision = false;
-                obstacles.forEach(o => { if(Math.sqrt((nX-o.x)**2 + (nZ-o.z)**2) < o.r + 1) collision = true; });
-                if(!collision && Math.abs(nX) < 195 && Math.abs(nZ) < 195) player.position.set(nX, 0, nZ);
-                player.rotation.y = Math.atan2(-moveX, -moveZ);
+                obstacles.forEach(o => {
+                    const dist = Math.sqrt((nextX - o.x)**2 + (nextZ - o.z)**2);
+                    if (dist < o.r + 1) collision = true;
+                });
+
+                if (!collision && Math.abs(nextX) < 240 && Math.abs(nextZ) < 240) {
+                    player.position.set(nextX, 0, nextZ);
+                }
+                player.rotation.y = Math.atan2(-joyVec.x, -joyVec.z);
             }
-            if(recalling) recallFx.rotation.y += 0.1;
 
-            // Обновление миникарты
-            const pMap = document.getElementById('minimap-player');
-            pMap.style.left = ((player.position.x + 200) / 400 * 120 - 3) + 'px';
-            pMap.style.top = ((player.position.z + 200) / 400 * 120 - 3) + 'px';
+            if (isRecalling) {
+                recallEffect.rotation.y += 0.15;
+            }
 
-            camDelta.x *= 0.9; camDelta.z *= 0.9;
-            camera.position.set(player.position.x + camDelta.x, 25, player.position.z + 20 + camDelta.z);
-            camera.lookAt(player.position.x + camDelta.x, 0, player.position.z + camDelta.z);
+            // Обновление камеры
+            camOffset.x *= 0.9; camOffset.z *= 0.9;
+            camera.position.set(player.position.x + camOffset.x, 26, player.position.z + 22 + camOffset.z);
+            camera.lookAt(player.position.x + camOffset.x, 0, player.position.z + camOffset.z);
+
+            updateMinimap();
             renderer.render(scene, camera);
         }
+
+        // Обработка изменения размера окна
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
     </script>
 </body>
 </html>
