@@ -2,442 +2,441 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MLBB Definitive Edition: 600+ Lines</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MOBA Legends: Massive Build</title>
     <style>
         :root {
             --gold: #ffcc00;
-            --blue: #2980b9;
-            --red: #c0392b;
-            --dark-bg: #050a0f;
+            --blue: #0088ff;
+            --red: #ff3300;
+            --ui-bg: rgba(10, 20, 30, 0.95);
         }
 
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
         body { 
             margin: 0; overflow: hidden; background: #000; 
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            user-select: none; -webkit-user-select: none;
-            touch-action: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            user-select: none; touch-action: none; color: white;
         }
 
-        /* ГЛАВНОЕ МЕНЮ */
-        #main-menu-overlay {
-            position: absolute; inset: 0; z-index: 2000;
+        /* --- СЛОИ ИНТЕРФЕЙСА --- */
+        #layer-manager { position: fixed; inset: 0; z-index: 9999; pointer-events: none; }
+
+        .full-screen {
+            position: absolute; inset: 0; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: auto;
             background: radial-gradient(circle at center, #1a2a6c 0%, #050a0f 100%);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.5s ease;
         }
 
-        .game-title {
-            color: var(--gold); font-size: 55px; font-weight: 900; letter-spacing: 12px;
-            text-shadow: 0 0 40px rgba(255, 204, 0, 0.4); margin-bottom: 50px;
-            text-align: center; text-transform: uppercase;
+        /* --- КНОПКИ МЕНЮ --- */
+        .main-button {
+            width: 300px; padding: 25px; margin: 15px;
+            background: linear-gradient(180deg, #f1c40f 0%, #d4ac0d 100%);
+            border: none; border-radius: 20px; color: #1a2a6c;
+            font-size: 26px; font-weight: 900; cursor: pointer;
+            box-shadow: 0 10px 0 #917508, 0 20px 40px rgba(0,0,0,0.6);
+            text-transform: uppercase; letter-spacing: 2px;
+            transition: all 0.1s; pointer-events: auto;
         }
+        .main-button:active { transform: translateY(8px); box-shadow: 0 2px 0 #917508; }
 
-        .menu-btn {
-            width: 280px; padding: 20px; margin: 12px;
-            font-size: 22px; font-weight: bold; color: white; border-radius: 15px;
-            cursor: pointer; border: none; text-transform: uppercase;
-            transition: 0.2s; box-shadow: 0 6px 0 rgba(0,0,0,0.3);
+        .sub-button {
+            width: 240px; padding: 15px; background: #2c3e50;
+            color: #ecf0f1; border: 2px solid #34495e; border-radius: 12px;
+            font-size: 18px; font-weight: 600; cursor: pointer;
+            pointer-events: auto; transition: 0.3s;
         }
-        .btn-start { background: linear-gradient(180deg, #27ae60, #219150); border-bottom: 4px solid #145a32; }
-        .btn-start:active { transform: translateY(4px); border-bottom: none; }
-        .btn-settings { background: linear-gradient(180deg, #7f8c8d, #34495e); border-bottom: 4px solid #2c3e50; }
+        .sub-button:hover { background: #34495e; border-color: var(--gold); }
 
-        /* ОКНО НАСТРОЕК */
-        #settings-window {
-            display: none; position: absolute; inset: 0; z-index: 2500;
+        /* --- ОКНО НАСТРОЕК --- */
+        #settings-panel {
+            display: none; position: fixed; inset: 0; z-index: 10000;
             background: rgba(0,0,0,0.9); align-items: center; justify-content: center;
         }
-        .settings-box {
-            background: #1c2833; padding: 40px; border-radius: 20px;
-            border: 2px solid var(--gold); width: 320px; color: white;
+        .settings-content {
+            background: var(--ui-bg); padding: 40px; border-radius: 30px;
+            border: 3px solid var(--gold); width: 90%; max-width: 450px;
+            box-shadow: 0 0 100px rgba(255, 204, 0, 0.2);
         }
-        .setting-row { display: flex; justify-content: space-between; margin-bottom: 25px; align-items: center; }
-
-        /* ИГРОВОЙ ИНТЕРФЕЙС (HUD) */
-        #game-hud {
-            display: none; position: absolute; inset: 0; z-index: 1000; pointer-events: none;
-        }
-
-        #minimap-container {
-            position: absolute; top: 20px; left: 20px; width: 200px; height: 200px;
-            background: rgba(0, 0, 0, 0.8); border: 2px solid #2c3e50;
-            border-radius: 12px; overflow: hidden; pointer-events: auto;
-        }
-        #minimap-canvas { width: 100%; height: 100%; }
-
-        #joystick-base {
-            position: absolute; bottom: 60px; left: 60px; width: 150px; height: 150px;
-            background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 50%; pointer-events: auto; backdrop-filter: blur(5px);
-        }
-        #joystick-ball {
-            position: absolute; top: 50%; left: 50%; width: 70px; height: 70px;
-            background: radial-gradient(circle, #fdfdfd, #95a5a6); border-radius: 50%;
-            transform: translate(-50%, -50%); box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        .setting-control {
+            display: flex; justify-content: space-between; align-items: center;
+            margin: 25px 0; font-size: 20px;
         }
 
-        #recall-button {
-            position: absolute; bottom: 70px; right: 70px; width: 110px; height: 110px;
-            background: linear-gradient(135deg, #2980b9, #154360); border: 4px solid white;
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 45px; color: white; pointer-events: auto; cursor: pointer;
-            box-shadow: 0 0 30px rgba(41, 128, 185, 0.5);
+        /* --- ИГРОВОЙ ХАД (HUD) --- */
+        #hud-container { display: none; position: fixed; inset: 0; z-index: 5000; pointer-events: none; }
+        
+        #joystick-wrapper {
+            position: absolute; bottom: 70px; left: 70px; width: 170px; height: 170px;
+            background: rgba(255,255,255,0.03); border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 50%; pointer-events: auto; backdrop-filter: blur(8px);
+        }
+        #joystick-knob {
+            position: absolute; top: 50%; left: 50%; width: 75px; height: 75px;
+            background: radial-gradient(circle, #ffffff 0%, #bdc3c7 100%);
+            border-radius: 50%; transform: translate(-50%, -50%);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.6);
         }
 
-        #recall-timer-text {
-            position: absolute; bottom: 220px; width: 100%; text-align: center;
-            color: #00f2ff; font-size: 38px; font-weight: 900; display: none;
-            text-shadow: 0 0 20px #000; letter-spacing: 4px;
+        #minimap-box {
+            position: absolute; top: 30px; left: 30px; width: 190px; height: 190px;
+            background: rgba(0, 5, 10, 0.85); border: 2px solid #34495e;
+            border-radius: 15px; pointer-events: auto; overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
 
-        #debug-log {
-            position: absolute; top: 230px; left: 20px; width: 200px; max-height: 150px;
-            background: rgba(0,0,0,0.85); color: #00ff00; font-family: monospace;
-            font-size: 11px; padding: 10px; border-radius: 5px; overflow-y: auto;
-            pointer-events: none; border: 1px solid #333; display: none;
+        #recall-action-btn {
+            position: absolute; bottom: 80px; right: 80px; width: 110px; height: 110px;
+            background: linear-gradient(135deg, #0088ff, #004488); 
+            border: 4px solid #fff; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 45px; pointer-events: auto; cursor: pointer;
+            box-shadow: 0 0 30px rgba(0, 136, 255, 0.4);
         }
+
+        /* --- ДЕБАГ И ЛОГИ --- */
+        #game-console {
+            position: fixed; top: 240px; left: 30px; width: 190px; height: 140px;
+            background: rgba(0,0,0,0.8); border: 1px solid #00ff00; color: #00ff00;
+            font-family: 'Courier New', monospace; font-size: 11px; padding: 8px;
+            overflow-y: auto; z-index: 11000; pointer-events: none; border-radius: 8px;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid rgba(0,255,0,0.1); }
     </style>
 </head>
 <body>
 
-    <div id="main-menu-overlay">
-        <h1 class="game-title">LEGENDS<br>AWAKENING</h1>
-        <button class="menu-btn btn-start" id="btn-play-game">ВСТУПИТЬ В БОЙ</button>
-        <button class="menu-btn btn-settings" id="btn-open-settings">НАСТРОЙКИ</button>
-    </div>
+    <div id="game-console">System: Waiting for user...</div>
 
-    <div id="settings-window">
-        <div class="settings-box">
-            <h2 style="text-align: center; color: var(--gold);">CONFIG</h2>
-            <div class="setting-row">
-                <span>Rendering</span>
-                <select style="background: #34495e; color: white; border: none; padding: 5px;">
-                    <option>Standard</option>
-                    <option selected>Ultra HD</option>
-                </select>
+    <div id="layer-manager">
+        <div id="screen-menu" class="full-screen">
+            <div style="text-align: center; margin-bottom: 40px;">
+                <h1 style="color:var(--gold); font-size: 60px; letter-spacing: 15px; margin:0; text-shadow: 0 0 30px rgba(255,204,0,0.5);">LEGENDS</h1>
+                <p style="color:var(--blue); letter-spacing: 5px; font-weight: bold;">MOBILE ENGINE V2</p>
             </div>
-            <div class="setting-row">
-                <span>Particles</span>
-                <input type="checkbox" checked>
-            </div>
-            <div class="setting-row">
-                <span>Shadows</span>
-                <input type="checkbox" checked>
-            </div>
-            <button class="menu-btn btn-settings" style="width: 100%; margin: 20px 0 0;" id="btn-close-settings">BACK</button>
+            <button class="main-button" id="btn-start-game">В БОЙ</button>
+            <button class="sub-button" id="btn-show-settings">НАСТРОЙКИ</button>
         </div>
-    </div>
 
-    <div id="game-hud">
-        <div id="minimap-container"><canvas id="minimap-canvas"></canvas></div>
-        <div id="debug-log"></div>
-        <div id="joystick-base"><div id="joystick-ball"></div></div>
-        <div id="recall-timer-text">RECALLING... <span id="r-time">5</span></div>
-        <div id="recall-button">🏠</div>
-        <div id="cam-touch-area" style="position:absolute; right:0; top:0; width:60%; height:100%; pointer-events:auto;"></div>
+        <div id="settings-panel">
+            <div class="settings-content">
+                <h2 style="color:var(--gold); text-align:center; font-size: 32px; margin-top:0;">КОНФИГУРАЦИЯ</h2>
+                <div class="setting-control">
+                    <span>Качество графики</span>
+                    <select style="background:#34495e; color:white; border:none; padding:8px; border-radius:5px;">
+                        <option>Низкое</option>
+                        <option selected>Ультра HD</option>
+                    </select>
+                </div>
+                <div class="setting-control">
+                    <span>Тени (RTX)</span>
+                    <input type="checkbox" checked style="width:20px; height:20px;">
+                </div>
+                <div class="setting-control">
+                    <span>Лимит FPS</span>
+                    <b style="color:var(--gold)">120</b>
+                </div>
+                <button class="sub-button" id="btn-hide-settings" style="width:100%; margin-top:20px; background:var(--gold); color:#000; border:none;">СОХРАНИТЬ</button>
+            </div>
+        </div>
+
+        <div id="hud-container">
+            <div id="minimap-box"><canvas id="minimap-render" width="190" height="190"></canvas></div>
+            <div id="joystick-wrapper"><div id="joystick-knob"></div></div>
+            <div id="recall-action-btn">🏠</div>
+            <div id="camera-touch-zone" style="position:absolute; right:0; top:0; width:60%; height:100%; pointer-events:auto;"></div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
         /**
-         * ENGINE CORE - КЛАСС ИГРЫ
+         * КЛАСС ЛОГИРОВАНИЯ
          */
-        class MobaEngine {
+        const Debugger = {
+            log: (text) => {
+                const el = document.getElementById('game-console');
+                const line = document.createElement('div');
+                line.className = 'log-entry';
+                line.innerHTML = `> ${text}`;
+                el.appendChild(line);
+                el.scrollTop = el.scrollHeight;
+            }
+        };
+
+        /**
+         * ОСНОВНОЙ ДВИЖОК ИГРЫ
+         */
+        class MobaMasterEngine {
             constructor() {
                 this.scene = null;
                 this.camera = null;
                 this.renderer = null;
                 this.player = null;
-                this.recallZone = null;
-                this.clock = new THREE.Clock();
+                this.worldObjects = [];
+                this.bushes = [];
                 
-                this.obstacles = [];
-                this.moving = false;
-                this.moveVector = { x: 0, z: 0 };
-                this.isRecalling = false;
-                this.recallTimer = null;
-                this.camRot = { x: 0, z: 0 };
-
-                this.MAP_LIMIT = 450;
+                this.input = { active: false, x: 0, z: 0 };
+                this.camDrag = { x: 0, z: 0 };
+                this.isGameRunning = false;
+                this.mapSize = 1000;
             }
 
             init() {
-                this.writeLog("System: Starting Core...");
-                
-                // Scene setup
+                Debugger.log("Инициализация ядра Three.js...");
+                try {
+                    this.setupScene();
+                    this.setupLights();
+                    this.generateTerrain();
+                    this.populateWorld();
+                    this.spawnHero();
+                    this.startLoop();
+                    this.isGameRunning = true;
+                    Debugger.log("Движок запущен. FPS: 60");
+                } catch (err) {
+                    Debugger.log("ОШИБКА ЗАПУСКА: " + err.message);
+                }
+            }
+
+            setupScene() {
                 this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0x050a0f);
-                this.scene.fog = new THREE.Fog(0x050a0f, 60, 300);
+                this.scene.background = new THREE.Color(0x020508);
+                this.scene.fog = new THREE.Fog(0x020508, 50, 400);
 
-                // Camera
-                this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1500);
+                this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
                 
-                // Renderer
-                this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
-                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.shadowMap.enabled = true;
                 document.body.appendChild(this.renderer.domElement);
+            }
 
-                // Lighting
-                const amb = new THREE.AmbientLight(0xffffff, 0.5);
-                this.scene.add(amb);
+            setupLights() {
+                const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+                this.scene.add(ambient);
+
                 const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-                sun.position.set(100, 200, 100);
+                sun.position.set(150, 250, 150);
+                sun.castShadow = true;
                 this.scene.add(sun);
-
-                this.createWorld();
-                this.spawnPlayer();
-                this.bindEvents();
-                this.animate();
             }
 
-            writeLog(msg) {
-                const l = document.getElementById('debug-log');
-                l.style.display = 'block';
-                l.innerHTML += `> ${msg}<br>`;
-                l.scrollTop = l.scrollHeight;
-                console.log(msg);
-            }
-
-            createWorld() {
-                // Ground
-                const groundGeo = new THREE.PlaneGeometry(1000, 1000);
-                const groundMat = new THREE.MeshStandardMaterial({ color: 0x145a32, roughness: 0.8 });
+            generateTerrain() {
+                // Трава
+                const groundGeo = new THREE.PlaneGeometry(this.mapSize, this.mapSize);
+                const groundMat = new THREE.MeshStandardMaterial({ color: 0x1b3022, roughness: 0.9 });
                 const ground = new THREE.Mesh(groundGeo, groundMat);
                 ground.rotation.x = -Math.PI / 2;
+                ground.receiveShadow = true;
                 this.scene.add(ground);
 
-                // River
-                const river = new THREE.Mesh(
-                    new THREE.PlaneGeometry(120, 1000),
-                    new THREE.MeshStandardMaterial({ color: 0x1a5276, transparent: true, opacity: 0.7 })
-                );
+                // Река (Центральная)
+                const waterGeo = new THREE.PlaneGeometry(140, this.mapSize);
+                const waterMat = new THREE.MeshStandardMaterial({ color: 0x1a5276, transparent: true, opacity: 0.7 });
+                const river = new THREE.Mesh(waterGeo, waterMat);
                 river.rotation.x = -Math.PI / 2;
-                river.position.y = 0.1;
+                river.position.y = 0.2;
                 this.scene.add(river);
 
-                // Roads
-                this.createLane(0, 0, Math.PI / 4); // Mid
-                this.createLane(-350, 0, 0); // Top
-                this.createLane(350, 0, 0);  // Bot
+                // Лайны (Дороги)
+                this.addRoad(0, 0, Math.PI / 4);   // Middle
+                this.addRoad(-360, 0, 0);          // Top
+                this.addRoad(360, 0, 0);           // Bottom
+                Debugger.log("Ландшафт готов.");
+            }
 
-                // Towers (FULL NETWORK)
+            addRoad(x, z, rotation) {
+                const roadGeo = new THREE.PlaneGeometry(70, 1500);
+                const roadMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50 });
+                const road = new THREE.Mesh(roadGeo, roadMat);
+                road.rotation.x = -Math.PI / 2;
+                road.rotation.z = rotation;
+                road.position.set(x, 0.15, z);
+                this.scene.add(road);
+            }
+
+            populateWorld() {
+                // Генерация башен (18 штук)
                 // Mid Line
                 for(let i=1; i<=3; i++) {
-                    this.addTower(-70 * i, 70 * i, 0x2980b9);
-                    this.addTower(70 * i, -70 * i, 0xc0392b);
+                    this.createTower(-80 * i, 80 * i, 0x0088ff); 
+                    this.createTower(80 * i, -80 * i, 0xff3300);
                 }
-                // Top Line
+                // Top Lane
                 for(let i=0; i<3; i++) {
-                    this.addTower(-350, 100 + i*100, 0x2980b9);
-                    this.addTower(-100 - i*100, -350, 0xc0392b);
-                }
-                // Bot Line
-                for(let i=0; i<3; i++) {
-                    this.addTower(100 + i*100, 350, 0x2980b9);
-                    this.addTower(350, -100 - i*100, 0xc0392b);
+                    this.createTower(-360, 120 + i*110, 0x0088ff);
+                    this.createTower(-120 - i*110, -360, 0xff3300);
                 }
 
-                // Bases
-                this.addMainBase(-420, 420, 0x2980b9);
-                this.addMainBase(420, -420, 0xc0392b);
+                // Базы (Нексусы)
+                this.createNexus(-440, 440, 0x0088ff);
+                this.createNexus(440, -440, 0xff3300);
 
-                // Jungle Decoration (600 objects)
-                for(let j=0; j<600; j++) {
-                    let rx = (Math.random() - 0.5) * 900;
-                    let rz = (Math.random() - 0.5) * 900;
+                // Джунгли (500+ объектов)
+                for(let k=0; k<550; k++) {
+                    let rx = (Math.random() - 0.5) * 950;
+                    let rz = (Math.random() - 0.5) * 950;
                     
-                    if (Math.abs(rx) > 80 && Math.abs(rx + rz) > 70) {
-                        const type = Math.random();
-                        if(type > 0.8) this.spawnTree(rx, rz);
-                        else if(type > 0.5) this.spawnRock(rx, rz);
-                        else if(type > 0.3) this.spawnBush(rx, rz);
+                    // Условие: не спавнить на дорогах
+                    if (Math.abs(rx) > 90 && Math.abs(rx + rz) > 100) {
+                        const dice = Math.random();
+                        if (dice > 0.85) this.addRock(rx, rz);
+                        else if (dice > 0.6) this.addTree(rx, rz);
+                        else if (dice > 0.4) this.addBush(rx, rz);
                     }
                 }
-                this.writeLog("World built: 18 Towers, 2 Nexuses, 600+ Jungle items");
+                Debugger.log("Объекты мира расставлены.");
             }
 
-            createLane(x, z, rot) {
-                const lane = new THREE.Mesh(
-                    new THREE.PlaneGeometry(65, 1400),
-                    new THREE.MeshStandardMaterial({ color: 0x212f3d })
-                );
-                lane.rotation.x = -Math.PI / 2;
-                lane.rotation.z = rot;
-                lane.position.set(x, 0.15, z);
-                this.scene.add(lane);
+            createTower(x, z, color) {
+                const towerGroup = new THREE.Group();
+                const base = new THREE.Mesh(new THREE.CylinderGeometry(6, 8, 6, 8), new THREE.MeshStandardMaterial({color: 0x444}));
+                const pillar = new THREE.Mesh(new THREE.CylinderGeometry(4, 5, 22, 8), new THREE.MeshStandardMaterial({color: 0x222}));
+                pillar.position.y = 12;
+                const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(6), new THREE.MeshStandardMaterial({color: color, emissive: color, emissiveIntensity: 2}));
+                crystal.position.y = 26;
+                
+                towerGroup.add(base); towerGroup.add(pillar); towerGroup.add(crystal);
+                towerGroup.position.set(x, 0, z);
+                this.scene.add(towerGroup);
+                this.worldObjects.push({ x, z, r: 10, type: 'tower', team: color });
             }
 
-            addTower(x, z, color) {
-                const group = new THREE.Group();
-                const base = new THREE.Mesh(new THREE.CylinderGeometry(5, 7, 5, 8), new THREE.MeshStandardMaterial({color: 0x566573}));
-                const body = new THREE.Mesh(new THREE.CylinderGeometry(3, 4, 18, 8), new THREE.MeshStandardMaterial({color: 0x2c3e50}));
-                body.position.y = 10;
-                const head = new THREE.Mesh(new THREE.OctahedronGeometry(5), new THREE.MeshStandardMaterial({color: color, emissive: color, emissiveIntensity: 1}));
-                head.position.y = 23;
-                group.add(base); group.add(body); group.add(head);
-                group.position.set(x, 0, z);
-                this.scene.add(group);
-                this.obstacles.push({ x, z, r: 9, team: color === 0x2980b9 ? 'blue' : 'red' });
+            createNexus(x, z, color) {
+                const nexus = new THREE.Group();
+                const platform = new THREE.Mesh(new THREE.BoxGeometry(40, 8, 40), new THREE.MeshStandardMaterial({color: 0x111}));
+                const gem = new THREE.Mesh(new THREE.IcosahedronGeometry(15, 0), new THREE.MeshStandardMaterial({color: color, emissive: color, emissiveIntensity: 3}));
+                gem.position.y = 20;
+                nexus.add(platform); nexus.add(gem);
+                nexus.position.set(x, 0, z);
+                this.scene.add(nexus);
+                this.worldObjects.push({ x, z, r: 25, type: 'nexus' });
             }
 
-            addMainBase(x, z, color) {
-                const group = new THREE.Group();
-                const core = new THREE.Mesh(new THREE.IcosahedronGeometry(12, 1), new THREE.MeshStandardMaterial({color: color, emissive: color, emissiveIntensity: 2}));
-                core.position.y = 15;
-                const platform = new THREE.Mesh(new THREE.BoxGeometry(30, 8, 30), new THREE.MeshStandardMaterial({color: 0x1c2833}));
-                group.add(core); group.add(platform);
-                group.position.set(x, 0, z);
-                this.scene.add(group);
-                this.obstacles.push({ x, z, r: 25, nexus: true });
+            addTree(x, z) {
+                const tree = new THREE.Group();
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(2, 2.5, 15), new THREE.MeshStandardMaterial({color: 0x3d2b1f}));
+                const leaves = new THREE.Mesh(new THREE.DodecahedronGeometry(10), new THREE.MeshStandardMaterial({color: 0x0a3d0a}));
+                leaves.position.y = 12;
+                tree.add(trunk); tree.add(leaves);
+                tree.position.set(x, 7.5, z);
+                this.scene.add(tree);
             }
 
-            spawnTree(x, z) {
-                const g = new THREE.Group();
-                const t = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 2, 12), new THREE.MeshStandardMaterial({color: 0x4e342e}));
-                const l = new THREE.Mesh(new THREE.SphereGeometry(7, 8, 8), new THREE.MeshStandardMaterial({color: 0x1b5e20}));
-                l.position.y = 10;
-                g.add(t); g.add(l);
-                g.position.set(x, 6, z);
-                this.scene.add(g);
+            addRock(x, z) {
+                const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(Math.random()*6+4), new THREE.MeshStandardMaterial({color: 0x444}));
+                rock.position.set(x, 4, z);
+                rock.rotation.set(Math.random(), Math.random(), Math.random());
+                this.scene.add(rock);
+                this.worldObjects.push({ x, z, r: 9 });
             }
 
-            spawnRock(x, z) {
-                const r = new THREE.Mesh(new THREE.DodecahedronGeometry(Math.random()*5+5), new THREE.MeshStandardMaterial({color: 0x424949}));
-                r.position.set(x, 4, z);
-                r.rotation.set(Math.random(), Math.random(), Math.random());
-                this.scene.add(r);
-                this.obstacles.push({ x, z, r: 8, deco: true });
+            addBush(x, z) {
+                const bush = new THREE.Mesh(new THREE.SphereGeometry(8, 8, 8), new THREE.MeshStandardMaterial({color: 0x1b4d3e, transparent: true, opacity: 0.9}));
+                bush.scale.y = 0.4; bush.position.set(x, 2, z);
+                this.scene.add(bush);
+                this.bushes.push({ x, z, r: 10 });
             }
 
-            spawnBush(x, z) {
-                const b = new THREE.Mesh(new THREE.SphereGeometry(6, 6, 6), new THREE.MeshStandardMaterial({color: 0x0e6655}));
-                b.scale.y = 0.5; b.position.set(x, 2, z);
-                this.scene.add(b);
-            }
-
-            spawnPlayer() {
+            spawnHero() {
                 this.player = new THREE.Group();
-                const body = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 5, 12), new THREE.MeshStandardMaterial({ color: 0x3498db }));
-                body.position.y = 2.5;
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 6, 12), new THREE.MeshStandardMaterial({ color: 0x0088ff }));
+                body.position.y = 3;
                 this.player.add(body);
                 
-                const sword = new THREE.Mesh(new THREE.BoxGeometry(0.5, 6, 0.8), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x00f2ff }));
-                sword.position.set(2, 4, 1);
-                sword.rotation.x = 0.4;
-                this.player.add(sword);
-
-                this.recallZone = new THREE.Mesh(
-                    new THREE.CylinderGeometry(7, 7, 120, 32, 1, true),
-                    new THREE.MeshBasicMaterial({ color: 0x00f2ff, transparent: true, opacity: 0, side: THREE.DoubleSide })
-                );
-                this.recallZone.position.y = 60;
-                this.player.add(this.recallZone);
+                const indicator = new THREE.Mesh(new THREE.RingGeometry(4, 5, 32), new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide }));
+                indicator.rotation.x = Math.PI/2; indicator.position.y = 0.2;
+                this.player.add(indicator);
 
                 this.scene.add(this.player);
-                this.player.position.set(-420, 0, 420);
-                this.writeLog("Hero ready: Blue Team");
+                this.player.position.set(-440, 0, 440);
             }
 
-            bindEvents() {
-                const joyBase = document.getElementById('joystick-base'), ball = document.getElementById('joystick-ball');
-                
-                const handleJoystick = (e) => {
-                    e.preventDefault();
-                    const t = e.touches ? e.touches[0] : e;
-                    const r = joyBase.getBoundingClientRect();
-                    const dx = t.clientX - (r.left + 75), dy = t.clientY - (r.top + 75);
-                    const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 65);
-                    const angle = Math.atan2(dy, dx);
+            startLoop() {
+                const animate = () => {
+                    if (!this.isGameRunning) return;
+                    requestAnimationFrame(animate);
                     
-                    ball.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
-                    this.moveVector = { x: Math.cos(angle), z: Math.sin(angle) };
-                    this.moving = true;
-                    if(this.isRecalling) this.stopRecall();
+                    this.handleMovement();
+                    this.updateCamera();
+                    this.checkEnvironment();
+                    this.renderMinimap();
+                    
+                    this.renderer.render(this.scene, this.camera);
                 };
-
-                joyBase.addEventListener('touchstart', handleJoystick);
-                joyBase.addEventListener('touchmove', handleJoystick);
-                window.addEventListener('touchend', () => {
-                    this.moving = false;
-                    ball.style.transform = 'translate(-50%, -50%)';
-                });
-
-                // Camera swipe
-                const camArea = document.getElementById('cam-touch-area');
-                let lastX, lastY;
-                camArea.addEventListener('touchstart', e => { 
-                    lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; 
-                });
-                camArea.addEventListener('touchmove', e => {
-                    this.camRot.x += (e.touches[0].clientX - lastX) * 0.12;
-                    this.camRot.z += (e.touches[0].clientY - lastY) * 0.12;
-                    lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
-                });
-
-                // Recall
-                document.getElementById('recall-button').addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    if(!this.isRecalling && !this.moving) this.startRecall();
-                });
+                animate();
             }
 
-            startRecall() {
-                this.isRecalling = true;
-                this.recallZone.material.opacity = 0.5;
-                document.getElementById('recall-timer-text').style.display = 'block';
-                let time = 5;
-                document.getElementById('r-time').innerText = time;
-                this.recallTimer = setInterval(() => {
-                    time--;
-                    document.getElementById('r-time').innerText = time;
-                    if(time <= 0) {
-                        this.player.position.set(-420, 0, 420);
-                        this.stopRecall();
+            handleMovement() {
+                if (this.input.active) {
+                    const speed = 1.1;
+                    const nextX = this.player.position.x + this.input.x * speed;
+                    const nextZ = this.player.position.z + this.input.z * speed;
+                    
+                    let canMove = true;
+                    this.worldObjects.forEach(obj => {
+                        const d = Math.sqrt((nextX - obj.x)**2 + (nextZ - obj.z)**2);
+                        if (d < obj.r + 3) canMove = false;
+                    });
+
+                    if (canMove && Math.abs(nextX) < 490 && Math.abs(nextZ) < 490) {
+                        this.player.position.set(nextX, 0, nextZ);
+                        this.player.rotation.y = Math.atan2(-this.input.x, -this.input.z);
                     }
-                }, 1000);
+                }
             }
 
-            stopRecall() {
-                this.isRecalling = false;
-                clearInterval(this.recallTimer);
-                this.recallZone.material.opacity = 0;
-                document.getElementById('recall-timer-text').style.display = 'none';
+            checkEnvironment() {
+                let inBush = false;
+                this.bushes.forEach(b => {
+                    const d = Math.sqrt((this.player.position.x - b.x)**2 + (this.player.position.z - b.z)**2);
+                    if (d < b.r) inBush = true;
+                });
+                this.player.children[0].material.opacity = inBush ? 0.4 : 1.0;
+                this.player.children[0].material.transparent = true;
             }
 
-            drawMinimap() {
-                const c = document.getElementById('minimap-canvas');
-                const ctx = c.getContext('2d');
-                c.width = 200; c.height = 200;
-                ctx.fillStyle = '#050a0f'; ctx.fillRect(0,0,200,200);
+            updateCamera() {
+                this.camDrag.x *= 0.9; this.camDrag.z *= 0.9;
+                this.camera.position.set(this.player.position.x + this.camDrag.x, 65, this.player.position.z + 60 + this.camDrag.z);
+                this.camera.lookAt(this.player.position.x + this.camDrag.x, 0, this.player.position.z + this.camDrag.z);
+            }
 
-                this.obstacles.forEach(o => {
-                    if(o.deco) return;
-                    ctx.fillStyle = o.team === 'blue' ? '#2980b9' : '#c0392b';
-                    const mx = ((o.x + 500)/1000)*200, mz = ((o.z + 500)/1000)*200;
-                    const s = o.nexus ? 10 : 4;
-                    ctx.fillRect(mx-s/2, mz-s/2, s, s);
+            renderMinimap() {
+                const canvas = document.getElementById('minimap-render');
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#050a0f'; ctx.fillRect(0,0,190,190);
+
+                this.worldObjects.forEach(o => {
+                    if(!o.team) return;
+                    ctx.fillStyle = o.team === 0x0088ff ? '#0088ff' : '#ff3300';
+                    const mx = ((o.x + 500)/1000)*190, mz = ((o.z + 500)/1000)*190;
+                    ctx.fillRect(mx-2, mz-2, 4, 4);
                 });
 
                 ctx.fillStyle = '#fff';
-                const px = ((this.player.position.x + 500)/1000)*200, pz = ((this.player.position.z + 500)/1000)*200;
-                ctx.beginPath(); ctx.arc(px, pz, 6, 0, Math.PI*2); ctx.fill();
+                const px = ((this.player.position.x+500)/1000)*190;
+                const pz = ((this.player.position.z+500)/1000)*190;
+                ctx.beginPath(); ctx.arc(px, pz, 5, 0, Math.PI*2); ctx.fill();
             }
+        }
 
-            animate() {
-                requestAnimationFrame(() => this.animate());
-                
-                if(this.moving && !this.isRecalling) {
-                    const nextX = this.player.position.x + this.moveVector.x * 0.8;
-                    const nextZ = this.player.position.z + this.moveVector.z * 0.8;
-                    
-                    let blocked = false;
-                    this.obstacles.forEach(o => {
-                        const dist = Math.sqrt((nextX - o.x)**2 + (nextZ - o.z)**2);
-                        if(dist < o.r + 2) blocked = true;
-                    });
+        /**
+         * УПРАВЛЕНИЕ UI И СОБЫТИЯМИ
+         */
+        const Game = new MobaMasterEngine();
 
-                    if(!blocked && Math.abs(nextX) < 490 && Math.abs(nextZ) < 490) {
-                        this.player.position.set(nextX, 0, nextZ);
-                        this.player.rotation.y = Math.atan2(-
+        // Гарантированный запуск через PointerEvents
+        const startBtn = document.getElementById('btn-start-game');
+        startBtn.onpointerdown = (e) => {
+            e.preventDefault();
+            Debugger.log("Загрузка игровых ресурсов...");
+            document.getElementById('screen-menu').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('screen-menu').style.display = 'none';
+                document.getElementById('
