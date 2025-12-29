@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Chaos Arena v9: The Zone & Characters</title>
+    <title>Chaos Arena v9: Battle Royale</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #0f0; user-select: none; }
         
@@ -65,7 +65,6 @@ let score = 0;
 let playerColor = 0x00aaff;
 let zoneMesh, zoneRadius = 150;
 
-// Генерация 30 кнопок персонажей
 const grid = document.getElementById('char-grid');
 for(let i=1; i<=30; i++) {
     const item = document.createElement('div');
@@ -107,8 +106,6 @@ function init() {
     document.body.appendChild(renderer.domElement);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-    
-    // СЕТКА
     scene.add(new THREE.GridHelper(400, 50, 0x00ff00, 0x002200));
 
     // ЗОНА
@@ -131,6 +128,22 @@ function init() {
     // ИГРОК
     player = createUnit(playerColor, true);
     entities.push(player);
+
+    // ОДНОРАЗОВЫЙ СПАВН БОТОВ ПРИ СТАРТЕ
+    log("Deploying 19 combatants...");
+    for (let i = 0; i < 19; i++) {
+        const bot = createUnit(0xff4444);
+        let spawned = false;
+        while (!spawned) {
+            let rx = (Math.random() - 0.5) * 250;
+            let rz = (Math.random() - 0.5) * 250;
+            bot.mesh.position.set(rx, 0, rz);
+            if (!checkWall(bot.mesh.position)) {
+                entities.push(bot);
+                spawned = true;
+            }
+        }
+    }
 
     window.onkeydown = (e) => keys[e.code] = true;
     window.onkeyup = (e) => keys[e.code] = false;
@@ -178,14 +191,6 @@ function animate() {
     if(zoneRadius < 5) zoneRadius = 5;
     zoneMesh.scale.set(zoneRadius, 1, zoneRadius);
 
-    // СПАВН БОТОВ
-    if (entities.length < 15) {
-        const bot = createUnit(0xff4444);
-        bot.mesh.position.set((Math.random()-0.5)*250, 0, (Math.random()-0.5)*250);
-        if (!checkWall(bot.mesh.position)) entities.push(bot);
-        else scene.remove(bot.mesh);
-    }
-
     // ЛОГИКА СУЩЕСТВ
     entities.forEach(ent => {
         const oldPos = ent.mesh.position.clone();
@@ -197,7 +202,7 @@ function animate() {
             if (keys['KeyD']) ent.mesh.rotation.y -= 0.06;
             if (keys['Space'] && Date.now() - ent.lastShot > 300) { spawnBullet(ent); ent.lastShot = Date.now(); }
         } else {
-            // ИИ
+            // ИИ ботов
             let target = player;
             ent.mesh.lookAt(target.mesh.position);
             ent.mesh.translateZ(0.15);
@@ -231,7 +236,7 @@ function animate() {
                 ent.hp -= 25;
                 hit = true;
                 if (ent.hp <= 0) {
-                    if (ent.isPlayer) { alert("Wasted!"); location.reload(); }
+                    if (ent.isPlayer) { alert("Вы погибли!"); location.reload(); }
                     if (b.owner.isPlayer) score++;
                     scene.remove(ent.mesh);
                     entities = entities.filter(e => e !== ent);
