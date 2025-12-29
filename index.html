@@ -2,175 +2,174 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>MLBB Linux Edition</title>
+    <title>MLBB Mini Edition</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
-        #ui { position: fixed; top: 10px; left: 10px; color: #fff; pointer-events: none; }
-        #hp-bar { width: 200px; height: 20px; background: #440000; border: 2px solid #fff; }
-        #hp-fill { width: 100%; height: 100%; background: #00ff00; transition: width 0.2s; }
-        #console { position: fixed; bottom: 10px; left: 10px; color: #0f0; font-family: monospace; font-size: 12px; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+        #ui { position: fixed; top: 10px; left: 10px; color: #fff; pointer-events: none; z-index: 10; }
+        #hp-bar { width: 150px; height: 15px; background: #440000; border: 2px solid #fff; }
+        #hp-fill { width: 100%; height: 100%; background: #00ff00; }
+        /* МИНИ-КАРТА */
+        #minimap { 
+            position: fixed; bottom: 20px; right: 20px; 
+            width: 150px; height: 150px; 
+            background: rgba(0, 40, 0, 0.8); 
+            border: 2px solid #555; border-radius: 10px;
+        }
     </style>
 </head>
 <body>
     <div id="ui">
-        <div>HP HERO</div>
+        <div>HERO HP</div>
         <div id="hp-bar"><div id="hp-fill"></div></div>
-        <div style="margin-top: 5px;">CONTROLS: WASD + SPACE (Attack)</div>
+        <div style="font-size: 12px; margin-top:5px;">WASD - Move | SPACE - Attack</div>
     </div>
-    <div id="console">> Engine Ready...</div>
+    <canvas id="minimap"></canvas>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // --- Настройки ---
-        const WORLD_SIZE = 500;
+        const MAP_SIZE = 200; // Уменьшенная карта
         let heroHP = 100;
         const bots = [];
         const keys = {};
 
-        // --- Инициализация сцены ---
+        // СЦЕНА
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a1a0a);
-        scene.fog = new THREE.Fog(0x0a1a0a, 50, 300);
-
+        scene.background = new THREE.Color(0x051105);
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(50, 100, 50);
+        const light = new THREE.DirectionalLight(0xffffff, 1.2);
+        light.position.set(20, 50, 20);
         scene.add(light);
         scene.add(new THREE.AmbientLight(0x404040));
 
-        // --- Карта ---
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE), new THREE.MeshStandardMaterial({ color: 0x152b15 }));
+        // ЗЕМЛЯ
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE), new THREE.MeshStandardMaterial({ color: 0x1a331a }));
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
 
-        // Река
-        const river = new THREE.Mesh(new THREE.PlaneGeometry(60, WORLD_SIZE), new THREE.MeshStandardMaterial({ color: 0x0e3a5a, transparent: true, opacity: 0.6 }));
-        river.rotation.x = -Math.PI / 2;
-        river.position.y = 0.1;
-        scene.add(river);
-
-        // --- Создание Героя ---
-        const hero = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 2), new THREE.MeshStandardMaterial({ color: 0x0088ff }));
-        body.position.y = 2;
-        hero.add(body);
-        scene.add(hero);
-        hero.position.set(-150, 0, 150);
-
-        // --- Создание Ботов (Враги) ---
-        function createBot(x, z) {
-            const botGroup = new THREE.Group();
-            const botBody = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 2), new THREE.MeshStandardMaterial({ color: 0xff3300 }));
-            botBody.position.y = 2;
-            botGroup.add(botBody);
-            
-            // ХП бар над ботом
-            const hpGeo = new THREE.PlaneGeometry(3, 0.4);
-            const hpMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const hpMesh = new THREE.Mesh(hpGeo, hpMat);
-            hpMesh.position.y = 5;
-            botGroup.add(hpMesh);
-
-            botGroup.position.set(x, 0, z);
-            scene.add(botGroup);
-            
-            bots.push({
-                mesh: botGroup,
-                hp: 50,
-                state: 'idle',
-                lastAttack: 0
-            });
+        // ФУНКЦИЯ СОЗДАНИЯ МОДЕЛИ (с лицом)
+        function createCharacter(color, isHero = false) {
+            const group = new THREE.Group();
+            // Тело
+            const body = new THREE.Mesh(
+                new THREE.CapsuleGeometry(1, 2, 4, 8), 
+                new THREE.MeshStandardMaterial({ color: color })
+            );
+            body.position.y = 1.5;
+            group.add(body);
+            // "Глаза" или визор, чтобы видеть направление
+            const visor = new THREE.Mesh(
+                new THREE.BoxGeometry(1.2, 0.4, 0.5),
+                new THREE.MeshStandardMaterial({ color: 0xffffff })
+            );
+            visor.position.set(0, 2.2, 0.6);
+            group.add(visor);
+            return group;
         }
 
-        // Спавним ботов на лайнах
-        createBot(0, 0);   // Мид
-        createBot(100, -100); // Топ
-        createBot(-50, 50);  // Лес
+        const hero = createCharacter(0x00aaff, true);
+        scene.add(hero);
+        hero.position.set(-20, 0, 20);
 
-        // --- Управление ---
+        // СОЗДАНИЕ БОТОВ РЯДОМ
+        function spawnBot(x, z) {
+            const botMesh = createCharacter(0xff4400);
+            botMesh.position.set(x, 0, z);
+            scene.add(botMesh);
+            bots.push({ mesh: botMesh, hp: 100, lastHit: 0 });
+        }
+
+        spawnBot(10, 10);
+        spawnBot(-10, -15);
+        spawnBot(25, -5);
+
+        // УПРАВЛЕНИЕ
         window.addEventListener('keydown', e => keys[e.code] = true);
         window.addEventListener('keyup', e => keys[e.code] = false);
 
-        function updateHero() {
-            const speed = 0.8;
-            if (keys['KeyW']) hero.position.z -= speed;
-            if (keys['KeyS']) hero.position.z += speed;
-            if (keys['KeyA']) hero.position.x -= speed;
-            if (keys['KeyD']) hero.position.x += speed;
+        function update() {
+            // Движение
+            let moveX = 0;
+            let moveZ = 0;
+            if (keys['KeyW']) moveZ -= 1;
+            if (keys['KeyS']) moveZ += 1;
+            if (keys['KeyA']) moveX -= 1;
+            if (keys['KeyD']) moveX += 1;
 
-            // Атака (Пробел)
-            if (keys['Space']) {
-                attackNearby();
+            if (moveX !== 0 || moveZ !== 0) {
+                const speed = 0.6;
+                hero.position.x += moveX * speed;
+                hero.position.z += moveZ * speed;
+                // ПОВОРОТ: смотрим туда, куда идем
+                const angle = Math.atan2(moveX, moveZ);
+                hero.rotation.y = angle;
             }
 
-            // Камера следует за героем
-            camera.position.set(hero.position.x, 60, hero.position.z + 40);
-            camera.lookAt(hero.position);
-        }
-
-        function attackNearby() {
-            bots.forEach(bot => {
-                const dist = hero.position.distanceTo(bot.mesh.position);
-                if (dist < 8) {
-                    bot.hp -= 1;
-                    log("Урон по боту! HP: " + bot.hp);
-                    if (bot.hp <= 0) {
-                        scene.remove(bot.mesh);
-                        bots.splice(bots.indexOf(bot), 1);
-                        log("Бот уничтожен!");
+            // Атака
+            if (keys['Space']) {
+                bots.forEach((bot, index) => {
+                    if (hero.position.distanceTo(bot.mesh.position) < 6) {
+                        bot.hp -= 2;
+                        bot.mesh.scale.set(1.2, 1.2, 1.2); // Эффект удара
+                        setTimeout(() => bot.mesh.scale.set(1, 1, 1), 100);
+                        if (bot.hp <= 0) {
+                            scene.remove(bot.mesh);
+                            bots.splice(index, 1);
+                        }
                     }
-                }
-            });
-        }
+                });
+            }
 
-        // --- Логика Ботов ---
-        function updateBots() {
-            const now = Date.now();
+            // Камера
+            camera.position.set(hero.position.x, 40, hero.position.z + 30);
+            camera.lookAt(hero.position);
+
+            // ИИ Ботов (медленно идут к герою)
             bots.forEach(bot => {
                 const dist = bot.mesh.position.distanceTo(hero.position);
-
-                // Если герой близко — бот идет бить
-                if (dist < 40 && dist > 3) {
+                if (dist < 30 && dist > 3) {
                     bot.mesh.lookAt(hero.position);
-                    bot.mesh.translateZ(0.3);
-                    bot.state = 'chase';
-                } 
-                
-                // Если совсем близко — наносит урон герою
-                if (dist <= 5 && now - bot.lastAttack > 1000) {
+                    bot.mesh.translateZ(0.15);
+                }
+                if (dist <= 3.5 && Date.now() - bot.lastHit > 1000) {
                     heroHP -= 5;
-                    bot.lastAttack = now;
+                    bot.lastHit = Date.now();
                     document.getElementById('hp-fill').style.width = heroHP + "%";
-                    log("Бот ударил тебя! Твое HP: " + heroHP);
                 }
             });
         }
 
-        function log(m) {
-            document.getElementById('console').innerText = "> " + m;
+        // РИСОВАНИЕ МИНИ-КАРТЫ
+        const mmCanvas = document.getElementById('minimap');
+        const mmCtx = mmCanvas.getContext('2d');
+
+        function drawMinimap() {
+            mmCtx.clearRect(0, 0, 150, 150);
+            // Герой
+            const hX = (hero.position.x / MAP_SIZE + 0.5) * 150;
+            const hZ = (hero.position.z / MAP_SIZE + 0.5) * 150;
+            mmCtx.fillStyle = '#fff';
+            mmCtx.beginPath(); mmCtx.arc(hX, hZ, 4, 0, Math.PI*2); mmCtx.fill();
+            // Боты
+            mmCtx.fillStyle = '#f00';
+            bots.forEach(bot => {
+                const bX = (bot.mesh.position.x / MAP_SIZE + 0.5) * 150;
+                const bZ = (bot.mesh.position.z / MAP_SIZE + 0.5) * 150;
+                mmCtx.beginPath(); mmCtx.arc(bX, bZ, 3, 0, Math.PI*2); mmCtx.fill();
+            });
         }
 
-        // --- Цикл игры ---
         function animate() {
             requestAnimationFrame(animate);
             if (heroHP > 0) {
-                updateHero();
-                updateBots();
-            } else {
-                log("GAME OVER. REFRESH TO RESTART.");
+                update();
+                drawMinimap();
             }
             renderer.render(scene, camera);
         }
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
 
         animate();
     </script>
