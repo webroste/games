@@ -2,184 +2,411 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Chaos Arena Fix</title>
+    <title>Chaos Arena: Skills Update</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; color: white; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #000; color: white; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        
+        /* ГЛАВНОЕ МЕНЮ (Защита от черного экрана) */
         #overlay { position: fixed; inset: 0; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
-        #error-log { position: fixed; top: 50px; width: 80%; color: #ff5555; font-family: monospace; text-align: center; }
-        .btn { padding: 20px 50px; font-size: 28px; background: #00ff44; color: black; border: none; cursor: pointer; font-weight: bold; border-radius: 10px; }
-        #ui { position: fixed; top: 10px; left: 10px; display: none; z-index: 10; font-family: monospace; }
-        #hp-container { width: 200px; height: 20px; background: #300; border: 2px solid white; }
-        #hp-bar { width: 100%; height: 100%; background: #0f0; }
-        #fps { position: fixed; top: 10px; right: 10px; color: #0f0; }
+        .btn { padding: 20px 50px; font-size: 24px; background: #ff9900; color: black; border: none; cursor: pointer; font-weight: bold; border-radius: 8px; box-shadow: 0 0 10px #ff9900; transition: 0.2s; }
+        .btn:hover { background: #ffcc00; transform: scale(1.05); }
+        
+        /* ИНТЕРФЕЙС ИГРЫ */
+        #ui { position: fixed; inset: 0; pointer-events: none; display: none; }
+        
+        /* ЗДОРОВЬЕ ГЕРОЯ */
+        #hp-container { position: absolute; top: 20px; left: 20px; width: 250px; height: 25px; background: #300; border: 2px solid white; transform: skewX(-20deg); }
+        #hp-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #0f0, #005500); transition: width 0.2s; }
+        #hp-text { position: absolute; top: -20px; left: 0; font-weight: bold; text-shadow: 1px 1px 0 #000; }
+
+        /* СТАТИСТИКА */
+        #stats { position: absolute; top: 20px; right: 20px; text-align: right; font-family: monospace; font-size: 18px; color: #0f0; }
+
+        /* НАВЫКИ (SKILLS) */
+        #skills-bar { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; }
+        .skill { width: 60px; height: 60px; background: rgba(0,0,0,0.7); border: 2px solid #555; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+        .skill span { font-size: 20px; font-weight: bold; color: #fff; }
+        .skill small { font-size: 10px; color: #aaa; }
+        .cooldown { position: absolute; inset: 0; background: rgba(0,0,0,0.8); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: red; font-weight: bold; font-size: 24px; display: none; }
+        .ready { border-color: #00ff00; box-shadow: 0 0 10px #00ff00; }
+
+        /* ПРЕДУПРЕЖДЕНИЕ О ЗОНЕ */
+        #zone-alert { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); color: red; font-size: 50px; font-weight: 900; display: none; text-shadow: 0 0 10px red; }
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <h1>CHAOS ARENA</h1>
-        <div id="error-log"></div>
-        <button class="btn" id="startBtn">ЗАПУСТИТЬ ИГРУ</button>
-        <p>Если экран черный — проверьте, включен ли WebGL в браузере</p>
+        <h1 style="color: #ff9900; text-shadow: 0 0 20px #ff4400;">CHAOS ARENA v3</h1>
+        <p style="margin-bottom: 30px; color: #aaa;">WASD - Ходьба | SPACE - Атака | Q - Рывок | E - Взрыв</p>
+        <button class="btn" id="startBtn">НАЧАТЬ БИТВУ</button>
     </div>
 
-    <div id="fps">FPS: --</div>
     <div id="ui">
-        <div>HEALTH</div>
+        <div id="hp-text">HP HERO</div>
         <div id="hp-container"><div id="hp-bar"></div></div>
-        <div id="score">Kills: 0</div>
+        
+        <div id="stats">
+            KILLS: <span id="score">0</span><br>
+            FPS: <span id="fps">0</span>
+        </div>
+
+        <div id="zone-alert">ВЕРНИСЬ В ЗОНУ!</div>
+
+        <div id="skills-bar">
+            <div class="skill" id="skill-q">
+                <span>Q</span><small>DASH</small>
+                <div class="cooldown" id="cd-q"></div>
+            </div>
+            <div class="skill" id="skill-e">
+                <span>E</span><small>BOOM</small>
+                <div class="cooldown" id="cd-e"></div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        const log = (msg) => { document.getElementById('error-log').innerText += "\n" + msg; };
+        // === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
+        let scene, camera, renderer, player, zoneWall;
+        let gameActive = false;
+        let lastTime = 0;
         
-        let scene, camera, renderer, player;
-        let gameRunning = false;
-        let hp = 100;
-        let kills = 0;
-        let zoneSize = 150;
-        const enemies = [];
-        const items = [];
+        // Статы игрока
+        const stats = { hp: 100, maxHp: 100, kills: 0, speed: 0.5 };
         const keys = {};
+        
+        // Игровые объекты
+        const enemies = [];
+        const effects = []; // Для визуальных эффектов (взрывы)
+        let zoneRadius = 160;
 
-        // 1. Ждем нажатия кнопки, чтобы избежать блокировки графики браузером
+        // Навыки
+        const skills = {
+            q: { cd: 3000, last: 0, el: document.getElementById('cd-q'), box: document.getElementById('skill-q') },
+            e: { cd: 5000, last: 0, el: document.getElementById('cd-e'), box: document.getElementById('skill-e') }
+        };
+
+        // === СТАРТ ===
         document.getElementById('startBtn').addEventListener('click', () => {
-            try {
-                initGame();
-                document.getElementById('overlay').style.display = 'none';
-                document.getElementById('ui').style.display = 'block';
-                gameRunning = true;
-                animate();
-            } catch (e) {
-                log("Ошибка запуска: " + e.message);
-            }
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('ui').style.display = 'block';
+            init();
+            gameActive = true;
+            animate(0);
         });
 
-        function initGame() {
-            // Инициализация сцены
+        function init() {
+            // СЦЕНА
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050505);
+            scene.background = new THREE.Color(0x101010);
+            scene.fog = new THREE.Fog(0x101010, 50, 250);
 
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            
-            // Настройка рендера с проверкой на ошибки
-            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true; // Тени для крутости
             document.body.appendChild(renderer.domElement);
 
-            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-            scene.add(ambient);
-            const sun = new THREE.PointLight(0xffffff, 1, 500);
-            sun.position.set(0, 50, 0);
+            // СВЕТ
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
             scene.add(sun);
+            scene.add(new THREE.AmbientLight(0x404050));
 
-            // Пол
+            // ПОЛ
             const floor = new THREE.Mesh(
                 new THREE.PlaneGeometry(500, 500),
-                new THREE.MeshStandardMaterial({ color: 0x111111 })
+                new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 })
             );
             floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
             scene.add(floor);
 
-            // Создаем игрока
-            player = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 3, 1.5), new THREE.MeshStandardMaterial({ color: 0x00ccff }));
-            body.position.y = 1.5;
-            const eye = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.5, 0.5), new THREE.MeshStandardMaterial({ color: 0xffffff }));
-            eye.position.set(0, 2.5, 0.6);
-            player.add(body, eye);
-            scene.add(player);
+            // === ЗОНА (СТЕНА) ===
+            // Используем цилиндр с открытыми верхом и низом
+            const zoneGeo = new THREE.CylinderGeometry(zoneRadius, zoneRadius, 50, 64, 1, true);
+            const zoneMat = new THREE.MeshBasicMaterial({ 
+                color: 0xff0000, 
+                transparent: true, 
+                opacity: 0.3, 
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending
+            });
+            zoneWall = new THREE.Mesh(zoneGeo, zoneMat);
+            zoneWall.position.y = 25; // Поднимаем, чтобы стояла на полу
+            scene.add(zoneWall);
 
+            // ИГРОК
+            createPlayer();
+
+            // СЛУШАТЕЛИ
             window.addEventListener('keydown', e => keys[e.code] = true);
             window.addEventListener('keyup', e => keys[e.code] = false);
-            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
         }
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+        function createPlayer() {
+            player = new THREE.Group();
+            
+            // Тело
+            const bodyGeo = new THREE.CapsuleGeometry(1, 2, 4, 8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x00aaff, emissive: 0x002244 });
+            const mesh = new THREE.Mesh(bodyGeo, bodyMat);
+            mesh.position.y = 2;
+            mesh.castShadow = true;
+            
+            // Кольцо направления (вместо глаз)
+            const ring = new THREE.Mesh(
+                new THREE.TorusGeometry(0.8, 0.1, 8, 20),
+                new THREE.MeshBasicMaterial({ color: 0xffffff })
+            );
+            ring.rotation.x = Math.PI / 2;
+            ring.position.y = 0.5;
+            mesh.add(ring);
+
+            player.add(mesh);
+            scene.add(player);
         }
 
         function spawnEnemy() {
-            const enemy = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial({ color: 0xff0044 }));
+            const group = new THREE.Group();
+            
+            // Враг (Красный куб)
+            const geom = new THREE.BoxGeometry(2, 4, 2);
+            const mat = new THREE.MeshStandardMaterial({ color: 0xff3333 });
+            const mesh = new THREE.Mesh(geom, mat);
+            mesh.position.y = 2;
+            mesh.castShadow = true;
+            group.add(mesh);
+
+            // === HP BAR ВРАГА ===
+            const hpBg = new THREE.Mesh(
+                new THREE.PlaneGeometry(3, 0.4),
+                new THREE.MeshBasicMaterial({ color: 0x550000 })
+            );
+            hpBg.position.y = 5;
+            hpBg.position.x = 0;
+            // Чтобы бар всегда смотрел в камеру (Billboard)
+            // Мы будем обновлять вращение в update
+            
+            const hpFg = new THREE.Mesh(
+                new THREE.PlaneGeometry(3, 0.4),
+                new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+            );
+            hpFg.position.z = 0.01; // Чуть спереди
+            hpFg.position.x = 0; 
+            
+            // Группируем бар
+            const hpGroup = new THREE.Group();
+            hpGroup.add(hpBg);
+            hpGroup.add(hpFg);
+            hpGroup.name = "hpBar";
+            group.add(hpGroup);
+
+            // Позиция
             const angle = Math.random() * Math.PI * 2;
-            const dist = zoneSize - 5;
-            enemy.position.set(Math.cos(angle)*dist, 1, Math.sin(angle)*dist);
-            scene.add(enemy);
-            enemies.push(enemy);
+            const dist = zoneRadius - 10;
+            group.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+            
+            scene.add(group);
+            enemies.push({ group: group, hp: 100, maxHp: 100, hpFg: hpFg });
         }
 
-        let lastFrameTime = 0;
-        let frameCount = 0;
+        // === ЭФФЕКТЫ ===
+        function createExplosion(pos, color, size) {
+            const geo = new THREE.SphereGeometry(size, 16, 16);
+            const mat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.8 });
+            const sphere = new THREE.Mesh(geo, mat);
+            sphere.position.copy(pos);
+            scene.add(sphere);
+            effects.push({ mesh: sphere, scale: 0.1, type: 'explosion' });
+        }
 
+        // === ГЛАВНЫЙ ЦИКЛ ===
         function animate(time) {
-            if (!gameRunning) return;
+            if (!gameActive) return;
             requestAnimationFrame(animate);
 
-            // Счётчик FPS
-            frameCount++;
-            if (time > lastFrameTime + 1000) {
-                document.getElementById('fps').innerText = "FPS: " + frameCount;
-                frameCount = 0;
-                lastFrameTime = time;
-                if(enemies.length < 15) spawnEnemy();
-            }
+            const dt = time - lastTime;
+            lastTime = time;
 
-            // Управление
+            // 1. Управление и Навыки
+            handleInput(time);
+
+            // 2. Логика врагов
+            if (enemies.length < 10) spawnEnemy();
+            updateEnemies();
+
+            // 3. Зона
+            updateZone();
+
+            // 4. Эффекты
+            updateEffects();
+
+            // 5. Камера
+            camera.position.set(player.position.x, 50, player.position.z + 40);
+            camera.lookAt(player.position);
+
+            // FPS
+            document.getElementById('fps').innerText = Math.round(1000 / (dt || 1));
+
+            renderer.render(scene, camera);
+        }
+
+        function handleInput(time) {
+            // Ходьба
             let dx = 0, dz = 0;
             if (keys['KeyW']) dz -= 1; if (keys['KeyS']) dz += 1;
             if (keys['KeyA']) dx -= 1; if (keys['KeyD']) dx += 1;
-            
+
             if (dx !== 0 || dz !== 0) {
-                const moveSpeed = 0.4;
-                player.position.x += dx * moveSpeed;
-                player.position.z += dz * moveSpeed;
+                player.position.x += dx * stats.speed;
+                player.position.z += dz * stats.speed;
                 player.rotation.y = Math.atan2(dx, dz);
             }
 
-            // Сужение зоны
-            zoneSize -= 0.01;
-            const playerDist = Math.sqrt(player.position.x**2 + player.position.z**2);
-            if (playerDist > zoneSize) {
-                hp -= 0.1;
-                scene.background = new THREE.Color(0x330000); // Экран краснеет
-            } else {
-                scene.background = new THREE.Color(0x050505);
+            // Навык Q (Рывок)
+            if (keys['KeyQ'] && time > skills.q.last + skills.q.cd) {
+                skills.q.last = time;
+                activateSkillUI('q');
+                // Логика рывка
+                const jumpDir = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y));
+                player.position.add(jumpDir.multiplyScalar(15)); // Прыжок на 15 единиц
+                createExplosion(player.position, 0x00ffff, 2);
             }
 
-            // Бой (Space)
-            if (keys['Space']) {
-                enemies.forEach((en, i) => {
-                    if (player.position.distanceTo(en.position) < 6) {
-                        scene.remove(en);
-                        enemies.splice(i, 1);
-                        kills++;
-                        document.getElementById('score').innerText = "Kills: " + kills;
+            // Навык E (Взрыв)
+            if (keys['KeyE'] && time > skills.e.last + skills.e.cd) {
+                skills.e.last = time;
+                activateSkillUI('e');
+                createExplosion(player.position, 0xffaa00, 15);
+                // Урон врагам
+                enemies.forEach(en => {
+                    if (player.position.distanceTo(en.group.position) < 15) {
+                        damageEnemy(en, 50);
                     }
                 });
             }
 
-            // ИИ врагов
-            enemies.forEach(en => {
-                en.lookAt(player.position);
-                en.translateZ(0.15);
-                if (en.position.distanceTo(player.position) < 2) hp -= 0.2;
-            });
-
-            // HP Bar
-            document.getElementById('hp-bar').style.width = hp + "%";
-            if (hp <= 0) {
-                alert("GAME OVER! KILLS: " + kills);
-                location.reload();
+            // Атака (Пробел)
+            if (keys['Space']) {
+                enemies.forEach(en => {
+                    if (player.position.distanceTo(en.group.position) < 6) {
+                        damageEnemy(en, 2);
+                    }
+                });
             }
 
-            // Камера
-            camera.position.set(player.position.x, 40, player.position.z + 30);
-            camera.lookAt(player.position);
+            updateSkillUI(time);
+        }
 
-            renderer.render(scene, camera);
+        function updateSkillUI(time) {
+            ['q', 'e'].forEach(k => {
+                const s = skills[k];
+                const left = s.last + s.cd - time;
+                if (left > 0) {
+                    s.el.style.display = 'flex';
+                    s.el.innerText = (left / 1000).toFixed(1);
+                    s.box.classList.remove('ready');
+                } else {
+                    s.el.style.display = 'none';
+                    s.box.classList.add('ready');
+                }
+            });
+        }
+
+        function activateSkillUI(key) {
+            // Эффект нажатия
+            skills[key].box.style.borderColor = 'white';
+            setTimeout(() => skills[key].box.style.borderColor = '#555', 100);
+        }
+
+        function updateEnemies() {
+            enemies.forEach((en, i) => {
+                const dist = en.group.position.distanceTo(player.position);
+                
+                // Движение к игроку
+                if (dist > 3) {
+                    en.group.lookAt(player.position);
+                    en.group.translateZ(0.2);
+                } else {
+                    // Атака игрока
+                    stats.hp -= 0.1;
+                }
+
+                // Поворот HP бара к камере
+                const hpBar = en.group.getObjectByName("hpBar");
+                if (hpBar) {
+                    hpBar.lookAt(camera.position); // Чтобы бар всегда был лицом к экрану
+                }
+            });
+
+            // Обновление UI здоровья
+            document.getElementById('hp-bar').style.width = Math.max(0, stats.hp) + "%";
+            if (stats.hp <= 0) gameOver();
+        }
+
+        function damageEnemy(en, amt) {
+            en.hp -= amt;
+            // Обновляем зеленую полоску (масштабируем по X)
+            const pct = Math.max(0, en.hp / en.maxHp);
+            en.hpFg.scale.set(pct, 1, 1);
+            // Сдвигаем, чтобы она уменьшалась слева, а не к центру
+            en.hpFg.position.x = -1.5 * (1 - pct); 
+
+            if (en.hp <= 0) {
+                scene.remove(en.group);
+                enemies.splice(enemies.indexOf(en), 1);
+                stats.kills++;
+                document.getElementById('score').innerText = stats.kills;
+            }
+        }
+
+        function updateZone() {
+            zoneRadius -= 0.03;
+            if (zoneRadius < 10) zoneRadius = 10; // Не сужать до нуля
+            
+            // Визуальное сужение
+            // CylinderGeometry нельзя легко изменить, поэтому мы меняем scale
+            const scale = zoneRadius / 160; 
+            zoneWall.scale.set(scale, 1, scale);
+
+            // Урон зоной
+            const pDist = Math.sqrt(player.position.x**2 + player.position.z**2);
+            if (pDist > zoneRadius) {
+                stats.hp -= 0.5;
+                document.getElementById('zone-alert').style.display = 'block';
+                scene.fog.color.setHex(0x550000); // Красный туман
+            } else {
+                document.getElementById('zone-alert').style.display = 'none';
+                scene.fog.color.setHex(0x101010);
+            }
+        }
+
+        function updateEffects() {
+            for (let i = effects.length - 1; i >= 0; i--) {
+                const eff = effects[i];
+                eff.scale += 0.5;
+                eff.mesh.scale.set(eff.scale, eff.scale, eff.scale);
+                eff.mesh.material.opacity -= 0.05;
+                
+                if (eff.mesh.material.opacity <= 0) {
+                    scene.remove(eff.mesh);
+                    effects.splice(i, 1);
+                }
+            }
+        }
+
+        function gameOver() {
+            gameActive = false;
+            alert("ИГРА ОКОНЧЕНА! ТЫ УНИЧТОЖИЛ " + stats.kills + " ВРАГОВ.");
+            location.reload();
         }
     </script>
 </body>
