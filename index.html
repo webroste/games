@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Chaos Arena v13: Squads & Nicknames</title>
+    <title>Chaos Arena v14: Squad Wars</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #0f0; user-select: none; }
         #menu { position: fixed; inset: 0; background: radial-gradient(circle, #051005 0%, #000 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; border: 10px double #0f0; }
@@ -13,21 +13,20 @@
         
         #char-selection { position: fixed; inset: 50px; background: rgba(0,20,0,0.95); border: 3px solid #0f0; display: none; z-index: 1100; padding: 20px; overflow-y: auto; }
         .char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; }
-        .char-item { aspect-ratio: 1; border: 1px solid #0f0; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .char-item { aspect-ratio: 1; border: 1px solid #0f0; cursor: pointer; }
 
         #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; padding: 20px; }
         #hp-bar { width: 300px; height: 20px; background: #300; border: 2px solid #0f0; position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); }
         #hp-fill { width: 100%; height: 100%; background: #0f0; transition: 0.2s; }
         #stats { position: absolute; top: 20px; right: 20px; text-align: right; font-size: 18px; }
         
-        /* СТИЛЬ НИКНЕЙМОВ */
-        .nickname { position: absolute; color: white; font-weight: bold; font-size: 14px; text-shadow: 1px 1px 2px black; pointer-events: none; transform: translate(-50%, -100%); white-space: nowrap; }
+        .nickname { position: absolute; font-weight: bold; font-size: 12px; text-shadow: 2px 2px 2px black; pointer-events: none; text-align: center; line-height: 1.2; }
     </style>
 </head>
 <body>
 
 <div id="menu">
-    <div class="menu-title">CHAOS ARENA V13</div>
+    <div class="menu-title">CHAOS ARENA V14</div>
     <div class="btn" onclick="startGame()">НАЧАТЬ ВЫСАДКУ</div>
     <div class="btn" onclick="openCharSelect()">ГЕРОЙ: <span id="current-char">ID-1</span></div>
     <div class="btn btn-mode" id="btn-mode" onclick="toggleMode()">РЕЖИМ: СОЛО</div>
@@ -62,7 +61,6 @@ for(let i=1; i<=30; i++) {
     item.className = 'char-item';
     const color = `hsl(${i * 12}, 70%, 50%)`;
     item.style.backgroundColor = color;
-    item.innerText = "ID-" + i;
     item.onclick = () => {
         playerColor = new THREE.Color(color);
         document.getElementById('current-char').innerText = "ID-" + i;
@@ -93,14 +91,12 @@ function init() {
     scene.add(new THREE.AmbientLight(0xffffff, 0.5));
     scene.add(new THREE.GridHelper(500, 50, 0x00ff00, 0x002200));
 
-    // Зона
     const zoneGeo = new THREE.CylinderGeometry(1, 1, 60, 64, 1, true);
     const zoneMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
     zoneMesh = new THREE.Mesh(zoneGeo, zoneMat);
     zoneMesh.position.y = 30;
     scene.add(zoneMesh);
 
-    // Здания
     for (let i = 0; i < 30; i++) {
         const h = 10 + Math.random() * 20;
         const b = new THREE.Mesh(new THREE.BoxGeometry(8, h, 8), new THREE.MeshStandardMaterial({ color: 0x111111 }));
@@ -110,8 +106,8 @@ function init() {
         buildings.push(b);
     }
 
-    // Игрок (200 HP)
-    player = createUnit(playerColor, true, 0, "PLAYER (YOU)");
+    // Твой персонаж (Team 0)
+    player = createUnit(playerColor, true, 0, "YOU");
     player.mesh.position.set(0, 0, 0);
     entities.push(player);
 
@@ -120,21 +116,14 @@ function init() {
     for (let i = 1; i < 20; i++) {
         let teamId = Math.floor(i / teamSize);
         let isAlly = (teamId === 0);
-        let color = isAlly ? playerColor : new THREE.Color().setHSL(teamId * 0.2, 0.8, 0.5);
-        let name = isAlly ? `ALLY ${i}` : `ENEMY ${i}`;
+        let color = isAlly ? playerColor : new THREE.Color().setHSL((teamId * 0.17) % 1, 0.8, 0.5);
+        let role = isAlly ? "ALLY" : "ENEMY";
         
-        const bot = createUnit(color, false, teamId, name);
+        const bot = createUnit(color, false, teamId, `${role}`);
         let spawned = false;
         while (!spawned) {
-            let rx, rz;
-            if (isAlly) {
-                // Союзники спавнятся рядом с игроком
-                rx = (Math.random() - 0.5) * 30;
-                rz = (Math.random() - 0.5) * 30;
-            } else {
-                rx = (Math.random() - 0.5) * 300;
-                rz = (Math.random() - 0.5) * 300;
-            }
+            let rx = isAlly ? (Math.random()-0.5)*20 : (Math.random()-0.5)*300;
+            let rz = isAlly ? (Math.random()-0.5)*20 : (Math.random()-0.5)*300;
             bot.mesh.position.set(rx, 0, rz);
             if (!checkWall(bot.mesh.position)) { entities.push(bot); spawned = true; }
         }
@@ -154,18 +143,17 @@ function createUnit(color, isPlayer = false, teamId, nameText) {
     gun.position.set(0.8, 2.2, 0.8); group.add(gun);
     scene.add(group);
 
-    // Создаем элемент никнейма в DOM
     const el = document.createElement('div');
     el.className = 'nickname';
-    el.innerText = nameText;
-    if (teamId === 0) el.style.color = '#00ffff'; // Голубой для своих
+    el.style.color = '#' + color.getHexString();
     document.body.appendChild(el);
 
-    return { mesh: group, hp: 200, maxHp: 200, isPlayer, lastShot: 0, teamId, label: el };
+    return { mesh: group, hp: 200, maxHp: 200, isPlayer, lastShot: 0, teamId, label: el, nameBase: nameText, color: color };
 }
 
 function spawnBullet(owner) {
-    const b = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshBasicMaterial({ color: owner.teamId === 0 ? 0x00ffff : 0xffaa00 }));
+    // ПУНКТ 2: Цвет пули совпадает с цветом команды
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.35), new THREE.MeshBasicMaterial({ color: owner.color }));
     b.position.copy(owner.mesh.position).add(new THREE.Vector3(0, 2.2, 0));
     const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(owner.mesh.quaternion).normalize();
     bullets.push({ mesh: b, dir, owner });
@@ -189,7 +177,8 @@ function updateLabels() {
             ent.label.style.display = 'block';
             ent.label.style.left = `${x}px`;
             ent.label.style.top = `${y}px`;
-            ent.label.innerText = `${ent.label.innerText.split('\n')[0]}\n[${Math.floor(ent.hp)} HP]`;
+            // ПУНКТ 1: Индикатор команды в никнейме
+            ent.label.innerHTML = `<span style="font-size:10px">[TEAM ${ent.teamId}]</span><br>${ent.nameBase}<br>${Math.floor(ent.hp)} HP`;
         } else {
             ent.label.style.display = 'none';
         }
@@ -199,10 +188,9 @@ function updateLabels() {
 function animate() {
     if (!gameActive) return;
     requestAnimationFrame(animate);
-    const delta = clock.getDelta();
     const time = clock.getElapsedTime();
 
-    zoneRadius -= 0.02; if(zoneRadius < 2) zoneRadius = 2;
+    zoneRadius -= 0.015; if(zoneRadius < 2) zoneRadius = 2;
     zoneMesh.scale.set(zoneRadius, 1, zoneRadius);
 
     for (let i = entities.length - 1; i >= 0; i--) {
@@ -217,7 +205,7 @@ function animate() {
             if (keys['KeyD']) ent.mesh.rotation.y -= 0.06;
             if (keys['Space'] && Date.now() - ent.lastShot > 250) { spawnBullet(ent); ent.lastShot = Date.now(); }
         } else {
-            let target = null, dMin = 150;
+            let target = null, dMin = 180;
             entities.forEach(other => {
                 if (other.teamId !== ent.teamId) {
                     let d = ent.mesh.position.distanceTo(other.mesh.position);
@@ -226,16 +214,16 @@ function animate() {
             });
             if (target) {
                 ent.mesh.lookAt(target.mesh.position);
-                if (dMin > 12) { ent.mesh.translateZ(0.2); ent.isMoving = true; }
-                else { ent.isMoving = false; if (Date.now() - ent.lastShot > 1000) { spawnBullet(ent); ent.lastShot = Date.now(); } }
+                if (dMin > 14) { ent.mesh.translateZ(0.18); ent.isMoving = true; }
+                else { ent.isMoving = false; if (Date.now() - ent.lastShot > 1100) { spawnBullet(ent); ent.lastShot = Date.now(); } }
             }
         }
 
         if (checkWall(ent.mesh.position)) ent.mesh.position.copy(oldPos);
-        if (ent.mesh.position.length() > zoneRadius) ent.hp -= 0.3;
+        if (ent.mesh.position.length() > zoneRadius) ent.hp -= 0.25;
 
         if (ent.hp <= 0) {
-            if (ent.isPlayer) { alert("ВЫ ПОГИБЛИ!"); location.reload(); return; }
+            if (ent.isPlayer) { alert("GAME OVER"); location.reload(); return; }
             ent.label.remove();
             scene.remove(ent.mesh);
             entities.splice(i, 1);
@@ -244,14 +232,15 @@ function animate() {
         ent.mesh.children[0].position.y = 1.5 + (ent.isMoving ? Math.abs(Math.sin(time*10))*0.2 : 0);
     }
 
-    bullets.forEach((b, i) => {
-        b.mesh.position.add(b.dir.clone().multiplyScalar(1.8));
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.mesh.position.add(b.dir.clone().multiplyScalar(1.9));
         let hit = false;
         for (let wall of buildings) if (wall.userData.box.containsPoint(b.mesh.position)) { hit = true; break; }
         if (!hit) {
             for (let target of entities) {
                 if (target === b.owner || target.teamId === b.owner.teamId) continue;
-                if (b.mesh.position.distanceTo(target.mesh.position.clone().add(new THREE.Vector3(0,1.5,0))) < 2) {
+                if (b.mesh.position.distanceTo(target.mesh.position.clone().add(new THREE.Vector3(0,1.5,0))) < 2.2) {
                     target.hp -= 20; hit = true;
                     if (b.owner.isPlayer && target.hp <= 0) score++;
                     break;
@@ -259,7 +248,7 @@ function animate() {
             }
         }
         if (hit || b.mesh.position.length() > 400) { scene.remove(b.mesh); bullets.splice(i, 1); }
-    });
+    }
 
     updateLabels();
     document.getElementById('hp-fill').style.width = (player.hp / player.maxHp * 100) + "%";
