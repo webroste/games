@@ -179,7 +179,7 @@
 
             // 5. Игрок
             player = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.CapsuleGeometry(1, 2, 4, 8), new THREE.MeshStandardMaterial({ color: 0x00aaff }));
+            const body = new THREE.Mesh(new THREE.SphereGeometry(1, 2, 4, 8), new THREE.MeshStandardMaterial({ color: 0x00aaff }));
             body.position.y = 2;
             const eye = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 0.5), new THREE.MeshBasicMaterial({ color: 0xffffff }));
             eye.position.set(0, 2.5, 0.6); // Глаза спереди
