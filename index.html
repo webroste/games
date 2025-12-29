@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Chaos Arena v18: Active Combat</title>
+    <title>Chaos Arena v19: Solid AI</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #00ffff; user-select: none; }
         #menu { position: fixed; inset: 0; background: radial-gradient(circle at 20% 50%, #001020 0%, #000 100%); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; z-index: 1000; padding-left: 5%; border-left: 10px solid #00ffff; }
@@ -19,7 +19,7 @@
 </head>
 <body>
 
-<div id="version-tag">BUILD: v0.18.active_ai</div>
+<div id="version-tag">BUILD: v0.19.physics_fixed</div>
 <div id="menu">
     <div class="menu-title">CHAOS ARENA</div>
     <div class="btn" onclick="startGame()">ВЫСАДКА</div>
@@ -71,8 +71,7 @@ function init() {
     scene.add(zoneMesh);
 
     for (let i = 0; i < 45; i++) {
-        const w = 10 + Math.random() * 10;
-        const h = 15 + Math.random() * 35;
+        const w = 12, h = 15 + Math.random() * 35;
         const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), new THREE.MeshStandardMaterial({ color: 0x151515 }));
         b.position.set((Math.random()-0.5)*450, h/2, (Math.random()-0.5)*450);
         b.userData.box = new THREE.Box3().setFromObject(b);
@@ -80,7 +79,7 @@ function init() {
         buildings.push(b);
     }
 
-    for (let i = 0; i < 12; i++) spawnMedkit();
+    for (let i = 0; i < 15; i++) spawnMedkit();
 
     player = createUnit(ALLY_COLOR, true, 0, "YOU");
     entities.push(player);
@@ -88,12 +87,10 @@ function init() {
     let teamSize = (currentModeIndex === 0) ? 1 : (currentModeIndex === 1 ? 2 : 4);
     for (let i = 1; i < 30; i++) {
         let teamId = Math.floor(i / teamSize);
-        let isAlly = (teamId === 0);
-        const bot = createUnit(isAlly ? ALLY_COLOR : ENEMY_COLOR, false, teamId, isAlly ? "ALLY" : "ENEMY");
+        const bot = createUnit(teamId === 0 ? ALLY_COLOR : ENEMY_COLOR, false, teamId, teamId === 0 ? "ALLY" : "ENEMY");
         let spawned = false;
         while (!spawned) {
-            let range = isAlly ? 50 : 450;
-            let rx = (Math.random()-0.5)*range, rz = (Math.random()-0.5)*range;
+            let rx = (Math.random()-0.5)*400, rz = (Math.random()-0.5)*400;
             bot.mesh.position.set(rx, 0, rz);
             if (!checkWall(bot.mesh.position)) { entities.push(bot); spawned = true; }
         }
@@ -109,8 +106,7 @@ function spawnMedkit() {
     const m = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial({ color: MEDKIT_COLOR, emissive: MEDKIT_COLOR, emissiveIntensity: 0.4 }));
     let x = (Math.random()-0.5)*400, z = (Math.random()-0.5)*400;
     m.position.set(x, 1, z);
-    scene.add(m);
-    medkits.push(m);
+    scene.add(m); medkits.push(m);
 }
 
 function createUnit(color, isPlayer = false, teamId, nameText) {
@@ -120,16 +116,11 @@ function createUnit(color, isPlayer = false, teamId, nameText) {
     const gun = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 1.4), new THREE.MeshStandardMaterial({ color: 0x111111 }));
     gun.position.set(0.8, 2.3, 0.8); group.add(gun);
     scene.add(group);
-
     const el = document.createElement('div');
     el.className = 'nickname';
     el.style.color = teamId === 0 ? "#00ffff" : "#ff4444";
     document.body.appendChild(el);
-
-    return { 
-        mesh: group, hp: 200, maxHp: 200, isPlayer, lastShot: 0, teamId, label: el, nameBase: nameText, 
-        color: new THREE.Color(color), lastPos: new THREE.Vector3(), stuckTimer: 0 
-    };
+    return { mesh: group, hp: 200, maxHp: 200, isPlayer, lastShot: 0, teamId, label: el, nameBase: nameText, color: new THREE.Color(color), driftDir: Math.random() > 0.5 ? 1 : -1 };
 }
 
 function checkWall(pos) {
@@ -138,27 +129,34 @@ function checkWall(pos) {
     return false;
 }
 
+function canSee(from, to) {
+    const origin = from.clone().add(new THREE.Vector3(0, 2, 0));
+    const dest = to.clone().add(new THREE.Vector3(0, 2, 0));
+    const dir = new THREE.Vector3().subVectors(dest, origin).normalize();
+    const ray = new THREE.Raycaster(origin, dir, 0, origin.distanceTo(dest));
+    const hits = ray.intersectObjects(buildings);
+    return hits.length === 0;
+}
+
 function animate() {
     if (!gameActive) return;
     requestAnimationFrame(animate);
-    const time = clock.getElapsedTime();
+    const delta = clock.getDelta();
 
-    // УСКОРЕННАЯ ЗОНА
-    zoneRadius -= 0.025; 
-    if(zoneRadius < 10) zoneRadius = 10;
+    zoneRadius -= 0.03; if(zoneRadius < 10) zoneRadius = 10;
     zoneMesh.scale.set(zoneRadius, 1, zoneRadius);
 
-    // Аптечки
-    medkits.forEach((m, i) => {
-        m.rotation.y += 0.03;
-        entities.forEach(ent => {
-            if (ent.mesh.position.distanceTo(m.position) < 3) {
-                ent.hp = Math.min(ent.maxHp, ent.hp + 60);
-                scene.remove(m); medkits.splice(i, 1);
-                setTimeout(spawnMedkit, 8000);
+    // Расталкивание сущностей (Anti-Stacking)
+    for (let i = 0; i < entities.length; i++) {
+        for (let j = i + 1; j < entities.length; j++) {
+            let dist = entities[i].mesh.position.distanceTo(entities[j].mesh.position);
+            if (dist < 2.5) {
+                let push = new THREE.Vector3().subVectors(entities[i].mesh.position, entities[j].mesh.position).normalize().multiplyScalar(0.1);
+                entities[i].mesh.position.add(push);
+                entities[j].mesh.position.sub(push);
             }
-        });
-    });
+        }
+    }
 
     for (let i = entities.length - 1; i >= 0; i--) {
         const ent = entities[i];
@@ -172,10 +170,7 @@ function animate() {
             if (keys['KeyD']) ent.mesh.rotation.y -= 0.07;
             if (keys['Space'] && Date.now() - ent.lastShot > 250) { spawnBullet(ent); ent.lastShot = Date.now(); }
         } else {
-            let target = null;
-            let dMin = 180;
-
-            // Сначала ищем врагов
+            let target = null, dMin = 200;
             entities.forEach(other => {
                 if (other.teamId !== ent.teamId) {
                     let d = ent.mesh.position.distanceTo(other.mesh.position);
@@ -183,51 +178,44 @@ function animate() {
                 }
             });
 
-            // Если HP мало и врагов рядом нет, ищем аптечку
-            if (ent.hp < 100 && dMin > 40 && medkits.length > 0) {
-                let nearestMed = medkits[0];
-                if (ent.mesh.position.distanceTo(nearestMed.position) < 80) target = { mesh: { position: nearestMed.position }, isMed: true };
-            }
-
             if (target) {
                 ent.mesh.lookAt(target.mesh.position);
-                ent.mesh.translateZ(0.22);
-                ent.isMoving = true;
+                const forward = new THREE.Vector3(0,0,1).applyQuaternion(ent.mesh.quaternion);
+                const wallRay = new THREE.Raycaster(ent.mesh.position.clone().add(new THREE.Vector3(0,1,0)), forward, 0, 6);
+                const wallHit = wallRay.intersectObjects(buildings).length > 0;
 
-                // Проверка на застревание
-                if (ent.mesh.position.distanceTo(ent.lastPos) < 0.01) {
-                    ent.stuckTimer++;
-                    if (ent.stuckTimer > 30) { ent.mesh.rotation.y += Math.PI / 2; ent.stuckTimer = 0; }
-                } else { ent.stuckTimer = 0; }
-                ent.lastPos.copy(ent.mesh.position);
-
-                if (!target.isMed && dMin < 30) {
-                    if (Date.now() - ent.lastShot > 1100) { spawnBullet(ent); ent.lastShot = Date.now(); }
+                if (wallHit) {
+                    ent.mesh.rotation.y += 0.1 * ent.driftDir;
+                    ent.mesh.translateZ(0.2);
+                } else {
+                    if (dMin > 20) ent.mesh.translateZ(0.22);
+                    if (dMin < 40 && canSee(ent.mesh.position, target.mesh.position)) {
+                        if (Date.now() - ent.lastShot > 1300) { spawnBullet(ent); ent.lastShot = Date.now(); }
+                    }
                 }
+                ent.isMoving = true;
             }
         }
 
         if (checkWall(ent.mesh.position)) ent.mesh.position.copy(oldPos);
-        if (ent.mesh.position.length() > zoneRadius) ent.hp -= 0.5; // Урон от зоны выше
+        if (ent.mesh.position.length() > zoneRadius) ent.hp -= 0.6;
 
         if (ent.hp <= 0) {
-            if (ent.isPlayer) { alert("DEAD"); location.reload(); return; }
+            if (ent.isPlayer) { alert("ВЫ ПРОИГРАЛИ"); location.reload(); return; }
             ent.label.remove(); scene.remove(ent.mesh); entities.splice(i, 1);
-            continue;
         }
     }
 
-    // Пули
     for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
-        b.mesh.position.add(b.dir.clone().multiplyScalar(2.3));
+        b.mesh.position.add(b.dir.clone().multiplyScalar(2.5));
         let hit = false;
         for (let wall of buildings) if (wall.userData.box.containsPoint(b.mesh.position)) { hit = true; break; }
         if (!hit) {
             for (let target of entities) {
                 if (target === b.owner || target.teamId === b.owner.teamId) continue;
                 if (b.mesh.position.distanceTo(target.mesh.position.clone().add(new THREE.Vector3(0,1.6,0))) < 2.5) {
-                    target.hp -= 30; hit = true;
+                    target.hp -= 35; hit = true;
                     if (b.owner.isPlayer && target.hp <= 0) score++;
                     break;
                 }
