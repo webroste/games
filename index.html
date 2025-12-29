@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Chaos Arena v19: Solid AI</title>
+    <title>Chaos Arena v20: Rapid Fire AI</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #00ffff; user-select: none; }
         #menu { position: fixed; inset: 0; background: radial-gradient(circle at 20% 50%, #001020 0%, #000 100%); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; z-index: 1000; padding-left: 5%; border-left: 10px solid #00ffff; }
@@ -19,7 +19,7 @@
 </head>
 <body>
 
-<div id="version-tag">BUILD: v0.19.physics_fixed</div>
+<div id="version-tag">BUILD: v0.20.rapid_fire</div>
 <div id="menu">
     <div class="menu-title">CHAOS ARENA</div>
     <div class="btn" onclick="startGame()">ВЫСАДКА</div>
@@ -36,12 +36,13 @@
 let scene, camera, renderer, player, clock;
 let gameActive = false, entities = [], bullets = [], buildings = [], medkits = [];
 let keys = {}, score = 0, zoneMesh, zoneRadius = 220;
-let modes = ["СОЛО", "ДУО", "ОТРЯД"], currentModeIndex = 0;
+let currentModeIndex = 0;
 
 const ALLY_COLOR = 0x0066ff, ENEMY_COLOR = 0xff3300, MEDKIT_COLOR = 0x00ff00;
 
 function toggleMode() {
-    currentModeIndex = (currentModeIndex + 1) % modes.length;
+    currentModeIndex = (currentModeIndex + 1) % 3;
+    const modes = ["СОЛО", "ДУО", "ОТРЯД"];
     document.getElementById('btn-mode').innerText = "РЕЖИМ: " + modes[currentModeIndex];
 }
 
@@ -134,26 +135,23 @@ function canSee(from, to) {
     const dest = to.clone().add(new THREE.Vector3(0, 2, 0));
     const dir = new THREE.Vector3().subVectors(dest, origin).normalize();
     const ray = new THREE.Raycaster(origin, dir, 0, origin.distanceTo(dest));
-    const hits = ray.intersectObjects(buildings);
-    return hits.length === 0;
+    return ray.intersectObjects(buildings).length === 0;
 }
 
 function animate() {
     if (!gameActive) return;
     requestAnimationFrame(animate);
-    const delta = clock.getDelta();
 
-    zoneRadius -= 0.03; if(zoneRadius < 10) zoneRadius = 10;
+    zoneRadius -= 0.035; if(zoneRadius < 10) zoneRadius = 10;
     zoneMesh.scale.set(zoneRadius, 1, zoneRadius);
 
-    // Расталкивание сущностей (Anti-Stacking)
+    // Расталкивание
     for (let i = 0; i < entities.length; i++) {
         for (let j = i + 1; j < entities.length; j++) {
             let dist = entities[i].mesh.position.distanceTo(entities[j].mesh.position);
             if (dist < 2.5) {
                 let push = new THREE.Vector3().subVectors(entities[i].mesh.position, entities[j].mesh.position).normalize().multiplyScalar(0.1);
-                entities[i].mesh.position.add(push);
-                entities[j].mesh.position.sub(push);
+                entities[i].mesh.position.add(push); entities[j].mesh.position.sub(push);
             }
         }
     }
@@ -163,14 +161,13 @@ function animate() {
         const oldPos = ent.mesh.position.clone();
 
         if (ent.isPlayer) {
-            ent.isMoving = false;
-            if (keys['KeyW']) { ent.mesh.translateZ(0.5); ent.isMoving = true; }
-            if (keys['KeyS']) { ent.mesh.translateZ(-0.5); ent.isMoving = true; }
+            if (keys['KeyW']) ent.mesh.translateZ(0.5);
+            if (keys['KeyS']) ent.mesh.translateZ(-0.5);
             if (keys['KeyA']) ent.mesh.rotation.y += 0.07;
             if (keys['KeyD']) ent.mesh.rotation.y -= 0.07;
             if (keys['Space'] && Date.now() - ent.lastShot > 250) { spawnBullet(ent); ent.lastShot = Date.now(); }
         } else {
-            let target = null, dMin = 200;
+            let target = null, dMin = 150;
             entities.forEach(other => {
                 if (other.teamId !== ent.teamId) {
                     let d = ent.mesh.position.distanceTo(other.mesh.position);
@@ -181,24 +178,25 @@ function animate() {
             if (target) {
                 ent.mesh.lookAt(target.mesh.position);
                 const forward = new THREE.Vector3(0,0,1).applyQuaternion(ent.mesh.quaternion);
-                const wallRay = new THREE.Raycaster(ent.mesh.position.clone().add(new THREE.Vector3(0,1,0)), forward, 0, 6);
-                const wallHit = wallRay.intersectObjects(buildings).length > 0;
+                const wallHit = new THREE.Raycaster(ent.mesh.position.clone().add(new THREE.Vector3(0,1,0)), forward, 0, 6).intersectObjects(buildings).length > 0;
 
                 if (wallHit) {
-                    ent.mesh.rotation.y += 0.1 * ent.driftDir;
-                    ent.mesh.translateZ(0.2);
+                    ent.mesh.rotation.y += 0.1 * ent.driftDir; ent.mesh.translateZ(0.2);
                 } else {
-                    if (dMin > 20) ent.mesh.translateZ(0.22);
-                    if (dMin < 40 && canSee(ent.mesh.position, target.mesh.position)) {
-                        if (Date.now() - ent.lastShot > 1300) { spawnBullet(ent); ent.lastShot = Date.now(); }
+                    if (dMin > 15) ent.mesh.translateZ(0.25);
+                    // ТЕПЕРЬ БОТЫ СТРЕЛЯЮТ БЫСТРО (задержка 300мс)
+                    if (dMin < 50 && canSee(ent.mesh.position, target.mesh.position)) {
+                        if (Date.now() - ent.lastShot > 300) { 
+                            spawnBullet(ent); 
+                            ent.lastShot = Date.now(); 
+                        }
                     }
                 }
-                ent.isMoving = true;
             }
         }
 
         if (checkWall(ent.mesh.position)) ent.mesh.position.copy(oldPos);
-        if (ent.mesh.position.length() > zoneRadius) ent.hp -= 0.6;
+        if (ent.mesh.position.length() > zoneRadius) ent.hp -= 0.8;
 
         if (ent.hp <= 0) {
             if (ent.isPlayer) { alert("ВЫ ПРОИГРАЛИ"); location.reload(); return; }
@@ -215,7 +213,7 @@ function animate() {
             for (let target of entities) {
                 if (target === b.owner || target.teamId === b.owner.teamId) continue;
                 if (b.mesh.position.distanceTo(target.mesh.position.clone().add(new THREE.Vector3(0,1.6,0))) < 2.5) {
-                    target.hp -= 35; hit = true;
+                    target.hp -= 15; hit = true; // Уменьшен урон за пулю, так как их много
                     if (b.owner.isPlayer && target.hp <= 0) score++;
                     break;
                 }
