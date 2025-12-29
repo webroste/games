@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Chaos Arena v9: Battle Royale</title>
+    <title>Chaos Arena v10: Team Modes</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #0f0; user-select: none; }
         
@@ -10,8 +10,12 @@
         #menu { position: fixed; inset: 0; background: radial-gradient(circle, #051005 0%, #000 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; border: 10px double #0f0; }
         .menu-title { font-size: 50px; text-shadow: 0 0 20px #0f0; margin-bottom: 30px; animation: blink 2s infinite; }
         
-        .btn { background: #000; color: #0f0; border: 2px solid #0f0; padding: 15px 40px; font-size: 20px; cursor: pointer; margin: 10px; transition: 0.3s; width: 300px; text-align: center; }
+        .btn { background: #000; color: #0f0; border: 2px solid #0f0; padding: 15px 40px; font-size: 20px; cursor: pointer; margin: 10px; transition: 0.3s; width: 350px; text-align: center; font-weight: bold; }
         .btn:hover { background: #0f0; color: #000; box-shadow: 0 0 15px #0f0; }
+        
+        /* КНОПКА РЕЖИМА */
+        .btn-mode { border-color: purple; color: purple; }
+        .btn-mode:hover { background: purple; color: #fff; box-shadow: 0 0 15px purple; }
 
         /* ОКНО ВЫБОРА ПЕРСОНАЖА */
         #char-selection { position: fixed; inset: 50px; background: rgba(0,20,0,0.95); border: 3px solid #0f0; display: none; z-index: 1100; padding: 20px; overflow-y: auto; }
@@ -34,9 +38,12 @@
 <div id="debug">System: Waiting for pilot...</div>
 
 <div id="menu">
-    <div class="menu-title">CHAOS ARENA V9</div>
+    <div class="menu-title">CHAOS ARENA V10</div>
     <div class="btn" onclick="startGame()">НАЧАТЬ ВЫСАДКУ</div>
-    <div class="btn" onclick="openCharSelect()">ВЫБРАТЬ ГЕРОЯ (<span id="current-char">Player 1</span>)</div>
+    <div class="btn" onclick="openCharSelect()">ГЕРОЙ: <span id="current-char">ID-1</span></div>
+    
+    <div class="btn btn-mode" id="btn-mode" onclick="toggleMode()">РЕЖИМ: СОЛО</div>
+    
     <p style="font-size: 12px; margin-top: 20px;">[ ОСТОРОЖНО: ЗОНА СУЖАЕТСЯ ]</p>
 </div>
 
@@ -65,6 +72,17 @@ let score = 0;
 let playerColor = 0x00aaff;
 let zoneMesh, zoneRadius = 150;
 
+// Режимы игры
+let gameMode = "SOLO"; // SOLO, DUO, SQUAD
+const modes = ["СОЛО", "ДУО", "ОТРЯД"];
+let currentModeIndex = 0;
+
+function toggleMode() {
+    currentModeIndex = (currentModeIndex + 1) % modes.length;
+    document.getElementById('btn-mode').innerText = "РЕЖИМ: " + modes[currentModeIndex];
+    gameMode = modes[currentModeIndex];
+}
+
 const grid = document.getElementById('char-grid');
 for(let i=1; i<=30; i++) {
     const item = document.createElement('div');
@@ -74,7 +92,7 @@ for(let i=1; i<=30; i++) {
     item.innerText = "ID-" + i;
     item.onclick = () => {
         playerColor = color;
-        document.getElementById('current-char').innerText = "Hero " + i;
+        document.getElementById('current-char').innerText = "ID-" + i;
         document.getElementById('current-char').style.color = color;
         closeCharSelect();
     };
@@ -130,7 +148,7 @@ function init() {
     entities.push(player);
 
     // ОДНОРАЗОВЫЙ СПАВН БОТОВ ПРИ СТАРТЕ
-    log("Deploying 19 combatants...");
+    log(`Mode: ${gameMode}. Deploying combatants...`);
     for (let i = 0; i < 19; i++) {
         const bot = createUnit(0xff4444);
         let spawned = false;
@@ -186,12 +204,10 @@ function animate() {
     requestAnimationFrame(animate);
     const time = clock.getElapsedTime();
 
-    // СУЖЕНИЕ ЗОНЫ
     zoneRadius -= 0.02;
     if(zoneRadius < 5) zoneRadius = 5;
     zoneMesh.scale.set(zoneRadius, 1, zoneRadius);
 
-    // ЛОГИКА СУЩЕСТВ
     entities.forEach(ent => {
         const oldPos = ent.mesh.position.clone();
         if (ent.isPlayer) {
@@ -202,7 +218,6 @@ function animate() {
             if (keys['KeyD']) ent.mesh.rotation.y -= 0.06;
             if (keys['Space'] && Date.now() - ent.lastShot > 300) { spawnBullet(ent); ent.lastShot = Date.now(); }
         } else {
-            // ИИ ботов
             let target = player;
             ent.mesh.lookAt(target.mesh.position);
             ent.mesh.translateZ(0.15);
@@ -214,7 +229,6 @@ function animate() {
 
         if (checkWall(ent.mesh.position)) ent.mesh.position.copy(oldPos);
 
-        // УРОН ОТ ЗОНЫ
         const distToCenter = ent.mesh.position.length();
         if (distToCenter > zoneRadius) {
             ent.hp -= 0.2;
@@ -224,7 +238,6 @@ function animate() {
         ent.mesh.children[0].position.y = 1.5 + (ent.isMoving ? Math.abs(Math.sin(time*10))*0.3 : 0);
     });
 
-    // ПУЛИ
     for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
         b.mesh.position.add(b.dir.clone().multiplyScalar(1.5));
