@@ -2,239 +2,397 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Chaos Arena: DEBUG MODE</title>
+    <title>Chaos Arena v4: Controls</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #333; color: white; font-family: monospace; }
+        body { margin: 0; overflow: hidden; background: #222; color: white; font-family: 'Segoe UI', monospace; user-select: none; }
         
-        /* КОНСОЛЬ ОТЛАДКИ (Видна всегда) */
-        #debug-console {
-            position: fixed; top: 0; left: 0; width: 100%; height: 150px;
-            background: rgba(0,0,0,0.8); color: #0f0; padding: 10px;
-            pointer-events: none; z-index: 9999; overflow-y: auto;
-            border-bottom: 2px solid white; font-size: 14px;
+        /* --- ЭКРАН ЗАГРУЗКИ / МЕНЮ --- */
+        #overlay { position: fixed; inset: 0; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; }
+        .btn { margin: 10px; padding: 20px 40px; font-size: 20px; cursor: pointer; background: #ff9900; color: #000; border: none; border-radius: 8px; font-weight: bold; width: 300px; text-align: center; }
+        .btn:hover { background: #ffcc00; }
+        .btn-toggle { background: #00aaff; color: white; }
+
+        /* --- КОНСОЛЬ ОТЛАДКИ --- */
+        #debug-log { position: fixed; top: 0; left: 0; padding: 10px; color: #aaa; font-size: 12px; pointer-events: none; z-index: 3000; }
+
+        /* --- ИНТЕРФЕЙС ИГРЫ --- */
+        #ui { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 1000; }
+        
+        /* HP BAR */
+        #hp-container { position: absolute; top: 20px; left: 20px; width: 250px; height: 30px; background: #400; border: 2px solid #fff; transform: skewX(-15deg); }
+        #hp-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #0f0, #006600); transition: width 0.1s; }
+        #hp-text { position: absolute; top: -20px; left: 0; font-weight: bold; text-shadow: 1px 1px 0 #000; }
+
+        /* НАВЫКИ */
+        #skills { position: absolute; bottom: 30px; right: 30px; display: flex; gap: 15px; }
+        .skill-btn { width: 70px; height: 70px; background: rgba(0,0,0,0.6); border: 2px solid #666; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; position: relative; pointer-events: auto; cursor: pointer; }
+        .skill-btn span { font-size: 24px; color: #fff; }
+        .skill-cd { position: absolute; inset: 0; background: rgba(0,0,0,0.8); border-radius: 50%; display: none; align-items: center; justify-content: center; color: red; font-size: 20px; }
+
+        /* --- ВИРТУАЛЬНЫЙ ДЖОЙСТИК --- */
+        #joystick-zone {
+            position: absolute; bottom: 50px; left: 50px;
+            width: 150px; height: 150px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: auto;
+            display: none; /* Скрыт по умолчанию */
+            touch-action: none; /* Важно для мобилок */
+        }
+        #joystick-stick {
+            position: absolute; top: 50%; left: 50%;
+            width: 50px; height: 50px;
+            background: rgba(0, 200, 255, 0.8);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
         }
 
-        /* ИНТЕРФЕЙС ИГРЫ */
-        #ui { position: fixed; bottom: 10px; left: 10px; pointer-events: none; display: none; }
-        #hp-bar { width: 200px; height: 20px; background: #500; border: 2px solid #fff; }
-        #hp-fill { width: 100%; height: 100%; background: #0f0; }
-        
-        #btn-start {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            padding: 20px 40px; font-size: 24px; cursor: pointer; background: #fff; color: #000;
-            border: none; border-radius: 5px; z-index: 100;
-        }
+        #zone-alert { position: absolute; top: 40%; width: 100%; text-align: center; color: red; font-size: 40px; font-weight: 900; display: none; text-shadow: 0 0 10px #000; }
     </style>
 </head>
 <body>
 
-    <div id="debug-console">Инициализация страницы...<br></div>
-    <button id="btn-start">ЗАПУСТИТЬ ТЕСТ</button>
+    <div id="debug-log">Log initialized...</div>
 
-    <div id="ui">
-        <div>HP HERO</div>
-        <div id="hp-bar"><div id="hp-fill"></div></div>
-        <div id="info">Управление: WASD + Space | Q - Dash | E - Boom</div>
+    <div id="overlay">
+        <h1 style="color: #ff9900;">CHAOS ARENA v4</h1>
+        
+        <div class="btn btn-toggle" id="btn-mode" onclick="toggleControlMode()">УПРАВЛЕНИЕ: WASD</div>
+        
+        <div class="btn" id="btn-start">НАЧАТЬ БИТВУ</div>
+        <p style="color: #777; margin-top: 20px;">Если экран синий — игра работает.</p>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" onerror="logError('ОШИБКА: Не удалось загрузить Three.js! Проверь интернет.')"></script>
+    <div id="ui">
+        <div id="hp-text">HP HERO</div>
+        <div id="hp-container"><div id="hp-fill"></div></div>
+        
+        <div id="zone-alert">ВЕРНИСЬ В ЗОНУ!</div>
+
+        <div id="joystick-zone">
+            <div id="joystick-stick"></div>
+        </div>
+
+        <div id="skills">
+            <div class="skill-btn" id="btn-q" onmousedown="useSkill('q')">
+                <span>Q</span><small>DASH</small>
+                <div class="skill-cd" id="cd-q"></div>
+            </div>
+            <div class="skill-btn" id="btn-e" onmousedown="useSkill('e')">
+                <span>E</span><small>BOOM</small>
+                <div class="skill-cd" id="cd-e"></div>
+            </div>
+            <div class="skill-btn" style="border-color: #ff4400;" onmousedown="useSkill('space')">
+                <span>SPC</span><small>ATK</small>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <script>
-        // === СИСТЕМА ЛОГОВ ===
+        // === ЛОГИРОВАНИЕ ===
         function log(msg) {
-            const el = document.getElementById('debug-console');
-            el.innerHTML += "> " + msg + "<br>";
-            el.scrollTop = el.scrollHeight;
+            document.getElementById('debug-log').innerText += "\n> " + msg;
             console.log(msg);
         }
 
-        function logError(msg) {
-            const el = document.getElementById('debug-console');
-            el.style.color = 'red';
-            el.innerHTML += "!!! КРИТИЧЕСКАЯ ОШИБКА: " + msg + "<br>";
+        // === НАСТРОЙКИ ===
+        let controlMode = 'wasd'; // 'wasd' или 'joystick'
+        let gameActive = false;
+        
+        function toggleControlMode() {
+            const btn = document.getElementById('btn-mode');
+            if (controlMode === 'wasd') {
+                controlMode = 'joystick';
+                btn.innerText = "УПРАВЛЕНИЕ: ДЖОЙСТИК";
+            } else {
+                controlMode = 'wasd';
+                btn.innerText = "УПРАВЛЕНИЕ: WASD";
+            }
         }
 
-        window.onerror = function(message, source, lineno, colno, error) {
-            logError(message + " (Line: " + lineno + ")");
-        };
-
-        // Переменные
-        let scene, camera, renderer, player;
-        let isRunning = false;
-        let hp = 100;
-        let zoneRadius = 150;
-        const enemies = [];
-        const keys = {};
-
-        // === КНОПКА ЗАПУСКА ===
+        // === ЗАПУСК ===
         document.getElementById('btn-start').addEventListener('click', () => {
-            document.getElementById('btn-start').style.display = 'none';
             try {
-                startEngine();
+                document.getElementById('overlay').style.display = 'none';
+                document.getElementById('ui').style.display = 'block';
+                
+                // Показываем/скрываем джойстик в зависимости от выбора
+                if (controlMode === 'joystick') {
+                    document.getElementById('joystick-zone').style.display = 'block';
+                    initJoystick();
+                }
+
+                initGame();
             } catch (e) {
-                logError(e);
+                log("CRITICAL ERROR: " + e.message);
+                alert("Ошибка запуска: " + e.message);
             }
         });
 
-        function startEngine() {
-            log("Запуск движка...");
-            
-            if (typeof THREE === 'undefined') {
-                throw new Error("Библиотека THREE не найдена. Скрипт не загрузился.");
-            }
+        // === ПЕРЕМЕННЫЕ ИГРЫ ===
+        let scene, camera, renderer, player;
+        let hp = 100, zoneRadius = 160;
+        const enemies = [];
+        const keys = {};
+        
+        // Вектор движения (общий для WASD и Джойстика)
+        let moveVector = { x: 0, z: 0 }; 
 
+        // Навыки
+        const skills = {
+            q: { cd: 2000, last: 0, el: document.getElementById('cd-q') },
+            e: { cd: 5000, last: 0, el: document.getElementById('cd-e') }
+        };
+
+        function initGame() {
+            log("Инициализация Three.js...");
+            
             // 1. Сцена
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x000033); // ТЕМНО-СИНИЙ ФОН
-            log("Сцена создана. Фон установлен (Синий).");
+            scene.background = new THREE.Color(0x001133); // Темно-синий
+            scene.fog = new THREE.Fog(0x001133, 40, 200);
 
-            // 2. Камера
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 50, 50);
-            camera.lookAt(0, 0, 0);
-
-            // 3. Рендерер (Без наворотов)
-            renderer = new THREE.WebGLRenderer({ antialias: false });
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            // 2. Рендерер
+            renderer = new THREE.WebGLRenderer({ antialias: false }); // Выкл сглаживание для скорости
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
-            log("WebGL Renderer создан.");
 
-            // 4. Свет
-            const light = new THREE.DirectionalLight(0xffffff, 1);
-            light.position.set(0, 50, 0);
-            scene.add(light);
-            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            // 3. Свет
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(50, 100, 50);
+            scene.add(dirLight);
 
-            // 5. Пол
-            const grid = new THREE.GridHelper(300, 30);
-            scene.add(grid);
+            // 4. Пол
             const floor = new THREE.Mesh(
-                new THREE.PlaneGeometry(300, 300), 
-                new THREE.MeshBasicMaterial({ color: 0x222222, side: THREE.DoubleSide })
+                new THREE.PlaneGeometry(400, 400),
+                new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 })
             );
             floor.rotation.x = -Math.PI / 2;
             scene.add(floor);
-            log("Геометрия мира создана.");
 
-            // 6. Игрок
+            // 5. Игрок
             player = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 2), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+            const body = new THREE.Mesh(new THREE.CapsuleGeometry(1, 2, 4, 8), new THREE.MeshStandardMaterial({ color: 0x00aaff }));
             body.position.y = 2;
-            player.add(body);
+            const eye = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 0.5), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            eye.position.set(0, 2.5, 0.6); // Глаза спереди
+            player.add(body, eye);
             scene.add(player);
 
-            // 7. Зона (Красная стена)
-            const zoneGeo = new THREE.CylinderGeometry(zoneRadius, zoneRadius, 20, 32, 1, true);
-            const zoneMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
-            const zone = new THREE.Mesh(zoneGeo, zoneMat);
-            zone.name = "ZoneWall";
-            zone.position.y = 10;
-            scene.add(zone);
+            // 6. Зона
+            createZone();
 
-            // 8. Управление
-            window.addEventListener('keydown', e => keys[e.code] = true);
+            // Листенеры клавиатуры
+            window.addEventListener('keydown', e => { keys[e.code] = true; if(e.code === 'Space') useSkill('space'); if(e.code === 'KeyQ') useSkill('q'); if(e.code === 'KeyE') useSkill('e'); });
             window.addEventListener('keyup', e => keys[e.code] = false);
 
-            document.getElementById('ui').style.display = 'block';
-            isRunning = true;
-            log("Цикл рендера запущен!");
+            gameActive = true;
+            log("Игра запущена!");
             animate();
         }
 
-        // Спавн врагов
-        function spawnEnemy() {
-            const en = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-            const angle = Math.random() * Math.PI * 2;
-            const dist = zoneRadius - 10;
-            en.position.set(Math.cos(angle)*dist, 1, Math.sin(angle)*dist);
-            scene.add(en);
-            
-            // HP Bar
-            const hpGeo = new THREE.PlaneGeometry(3, 0.5);
-            const hpMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-            const hpMesh = new THREE.Mesh(hpGeo, hpMat);
-            hpMesh.position.y = 3;
-            en.add(hpMesh);
-
-            enemies.push({ mesh: en, hp: 50, hpBar: hpMesh });
+        function createZone() {
+            const geo = new THREE.CylinderGeometry(zoneRadius, zoneRadius, 30, 32, 1, true);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+            const zone = new THREE.Mesh(geo, mat);
+            zone.name = "Zone";
+            zone.position.y = 15;
+            scene.add(zone);
         }
 
+        // === ДЖОЙСТИК ЛОГИКА ===
+        function initJoystick() {
+            const zone = document.getElementById('joystick-zone');
+            const stick = document.getElementById('joystick-stick');
+            let dragStart = null;
+
+            const handleStart = (clientX, clientY) => {
+                const rect = zone.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                dragStart = { x: centerX, y: centerY };
+                handleMove(clientX, clientY);
+            };
+
+            const handleMove = (clientX, clientY) => {
+                if (!dragStart) return;
+                const dx = clientX - dragStart.x;
+                const dy = clientY - dragStart.y;
+                const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 50); // Ограничение радиуса 50px
+                const angle = Math.atan2(dy, dx);
+                
+                // Визуальное смещение стика
+                const stickX = Math.cos(angle) * dist;
+                const stickY = Math.sin(angle) * dist;
+                stick.style.transform = `translate(calc(-50% + ${stickX}px), calc(-50% + ${stickY}px))`;
+
+                // Обновляем глобальный вектор движения (-1 до 1)
+                moveVector.x = stickX / 50;
+                moveVector.z = stickY / 50;
+            };
+
+            const handleEnd = () => {
+                dragStart = null;
+                stick.style.transform = `translate(-50%, -50%)`;
+                moveVector.x = 0;
+                moveVector.z = 0;
+            };
+
+            // Мышь
+            zone.addEventListener('mousedown', e => handleStart(e.clientX, e.clientY));
+            document.addEventListener('mousemove', e => { if(dragStart) handleMove(e.clientX, e.clientY); });
+            document.addEventListener('mouseup', handleEnd);
+            
+            // Тачскрин
+            zone.addEventListener('touchstart', e => { handleStart(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); });
+            zone.addEventListener('touchmove', e => { if(dragStart) handleMove(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); });
+            zone.addEventListener('touchend', handleEnd);
+        }
+
+        // === ИГРОВОЙ ЦИКЛ ===
         function animate() {
-            if (!isRunning) return;
+            if (!gameActive) return;
             requestAnimationFrame(animate);
 
-            // --- ЛОГИКА ---
-            // Спавн
-            if (Math.random() < 0.02 && enemies.length < 15) spawnEnemy();
-
-            // Движение игрока
-            let dx = 0, dz = 0;
-            if (keys['KeyW']) dz -= 1; if (keys['KeyS']) dz += 1;
-            if (keys['KeyA']) dx -= 1; if (keys['KeyD']) dx += 1;
-            player.position.x += dx * 0.5;
-            player.position.z += dz * 0.5;
+            updateMovement();
+            updateGameLogic();
             
-            // Навыки
-            // Q - Dash
-            if (keys['KeyQ']) {
-                player.position.x += dx * 5;
-                player.position.z += dz * 5;
-            }
-            // E - Explosion
-            if (keys['KeyE']) {
-                enemies.forEach((en, i) => {
-                    if (player.position.distanceTo(en.mesh.position) < 15) {
-                        scene.remove(en.mesh);
-                        enemies.splice(i, 1);
-                    }
-                });
+            renderer.render(scene, camera);
+        }
+
+        function updateMovement() {
+            let dx = 0, dz = 0;
+
+            if (controlMode === 'wasd') {
+                if (keys['KeyW']) dz -= 1;
+                if (keys['KeyS']) dz += 1;
+                if (keys['KeyA']) dx -= 1;
+                if (keys['KeyD']) dx += 1;
+            } else {
+                // Джойстик пишет значения сразу в moveVector, но нам нужно нормализовать их для скорости
+                dx = moveVector.x;
+                dz = moveVector.z;
             }
 
-            // Атака (Space)
-            if (keys['Space']) {
-                enemies.forEach((en, i) => {
-                    if (player.position.distanceTo(en.mesh.position) < 5) {
-                        en.hp -= 5;
-                        en.hpBar.scale.x = en.hp / 50;
-                        if (en.hp <= 0) {
-                            scene.remove(en.mesh);
-                            enemies.splice(i, 1);
-                        }
-                    }
-                });
+            // Применяем движение
+            if (Math.abs(dx) > 0.1 || Math.abs(dz) > 0.1) {
+                const speed = 0.5;
+                player.position.x += dx * speed;
+                player.position.z += dz * speed;
+                player.rotation.y = Math.atan2(dx, dz); // Поворот лица
+            }
+
+            // Камера следит за игроком
+            camera.position.set(player.position.x, 50, player.position.z + 40);
+            camera.lookAt(player.position);
+        }
+
+        function updateGameLogic() {
+            // Спавн врагов
+            if (enemies.length < 8 && Math.random() < 0.03) spawnEnemy();
+
+            // Зона
+            zoneRadius -= 0.04;
+            const zone = scene.getObjectByName("Zone");
+            if (zone) {
+                const s = Math.max(0.1, zoneRadius / 160);
+                zone.scale.set(s, 1, s);
+            }
+            if (player.position.length() > zoneRadius) {
+                hp -= 0.3;
+                document.getElementById('zone-alert').style.display = 'block';
+            } else {
+                document.getElementById('zone-alert').style.display = 'none';
             }
 
             // Враги
-            enemies.forEach(en => {
-                en.mesh.lookAt(player.position);
-                en.mesh.translateZ(0.2);
-                en.hpBar.lookAt(camera.position);
-                if (en.mesh.position.distanceTo(player.position) < 2) hp -= 0.1;
+            enemies.forEach((en, i) => {
+                const dist = en.mesh.position.distanceTo(player.position);
+                if (dist > 3) {
+                    en.mesh.lookAt(player.position);
+                    en.mesh.translateZ(0.2);
+                } else {
+                    hp -= 0.2;
+                }
+                
+                // HP Bar update logic here could be added
             });
-
-            // Зона
-            zoneRadius -= 0.05;
-            const zoneMesh = scene.getObjectByName("ZoneWall");
-            if(zoneMesh) {
-                const s = zoneRadius / 150;
-                zoneMesh.scale.set(s, 1, s);
-            }
-            if (player.position.length() > zoneRadius) hp -= 0.5;
 
             // UI
             document.getElementById('hp-fill').style.width = Math.max(0, hp) + "%";
             if (hp <= 0) {
-                isRunning = false;
-                alert("Game Over");
+                gameActive = false;
+                alert("ВЫ ПОГИБЛИ!");
                 location.reload();
             }
 
-            // Камера
-            camera.position.x = player.position.x;
-            camera.position.z = player.position.z + 40;
-            camera.lookAt(player.position);
+            // Обновление таймеров навыков
+            updateSkillUI();
+        }
 
-            renderer.render(scene, camera);
+        function spawnEnemy() {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial({ color: 0xff3333 }));
+            const angle = Math.random() * Math.PI * 2;
+            const r = zoneRadius - 5;
+            mesh.position.set(Math.cos(angle)*r, 1, Math.sin(angle)*r);
+            scene.add(mesh);
+            enemies.push({ mesh: mesh, hp: 50 });
+        }
+
+        // === НАВЫКИ ===
+        function useSkill(type) {
+            const now = Date.now();
+            
+            if (type === 'space') {
+                // Атака без кулдауна
+                enemies.forEach((en, i) => {
+                    if (player.position.distanceTo(en.mesh.position) < 6) {
+                        en.hp -= 20;
+                        en.mesh.scale.set(1.2, 1.2, 1.2); setTimeout(()=>en.mesh.scale.set(1,1,1), 100);
+                        if (en.hp <= 0) { scene.remove(en.mesh); enemies.splice(i, 1); }
+                    }
+                });
+                return;
+            }
+
+            // Q и E с кулдауном
+            const s = skills[type];
+            if (now > s.last + s.cd) {
+                s.last = now;
+                
+                if (type === 'q') { // Dash
+                    const dir = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y));
+                    player.position.add(dir.multiplyScalar(15));
+                }
+                if (type === 'e') { // Boom
+                    enemies.forEach((en, i) => {
+                        if (player.position.distanceTo(en.mesh.position) < 15) {
+                            scene.remove(en.mesh); enemies.splice(i, 1);
+                        }
+                    });
+                }
+            }
+        }
+
+        function updateSkillUI() {
+            const now = Date.now();
+            ['q', 'e'].forEach(k => {
+                const s = skills[k];
+                const left = (s.last + s.cd - now) / 1000;
+                if (left > 0) {
+                    s.el.style.display = 'flex';
+                    s.el.innerText = left.toFixed(1);
+                } else {
+                    s.el.style.display = 'none';
+                }
+            });
         }
     </script>
 </body>
