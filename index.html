@@ -2,60 +2,60 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Chaos Arena v22: Total War</title>
+    <title>Chaos Arena v23: Battle Royale</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #00ffff; user-select: none; }
-        #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
         
+        /* АНИМИРОВАННОЕ МЕНЮ */
         #menu { 
             position: fixed; inset: 0; 
-            background: radial-gradient(circle at 20% 50%, #001020 0%, #000 100%); 
-            display: flex; flex-direction: column; align-items: flex-start; justify-content: center; 
-            z-index: 1000; padding-left: 5%; border-left: 10px solid #00ffff; 
+            background: radial-gradient(circle at 50% 50%, #001525 0%, #000 100%); 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            z-index: 1000; 
         }
-        .menu-title { font-size: 50px; text-shadow: 0 0 20px #00ffff; margin-bottom: 20px; }
+        #menu::before {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(0,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,255,0.05) 1px, transparent 1px);
+            background-size: 50px 50px; animation: moveGrid 10s linear infinite;
+        }
+        @keyframes moveGrid { from { background-position: 0 0; } to { background-position: 50px 50px; } }
+        
+        .menu-title { font-size: 70px; letter-spacing: 15px; text-shadow: 0 0 30px #00ffff; margin-bottom: 40px; position: relative; }
         .btn { 
-            background: rgba(0, 0, 0, 0.7); color: #00ffff; border: 2px solid #00ffff; 
-            padding: 15px 30px; font-size: 18px; cursor: pointer; margin: 10px 0; 
-            transition: 0.3s; width: 320px; text-align: left; font-weight: bold; text-transform: uppercase; 
+            background: transparent; color: #00ffff; border: 2px solid #00ffff; 
+            padding: 20px 50px; font-size: 20px; cursor: pointer; transition: 0.4s; 
+            font-weight: bold; text-transform: uppercase; position: relative; overflow: hidden;
         }
-        .btn:hover { background: #00ffff; color: #000; box-shadow: 0 0 25px #00ffff; transform: translateX(10px); }
+        .btn:hover { background: #00ffff; color: #000; box-shadow: 0 0 50px #00ffff; transform: scale(1.1); }
 
+        #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
         #hp-bar { width: 300px; height: 15px; background: #200; border: 2px solid #00ffff; position: absolute; bottom: 40px; left: 40px; }
         #hp-fill { width: 100%; height: 100%; background: #00ffff; transition: 0.2s; }
-        #ability-ui { position: absolute; bottom: 65px; left: 40px; font-size: 14px; font-weight: bold; text-shadow: 0 0 5px #00ffff; }
-        #weapon-info { position: absolute; bottom: 40px; right: 40px; font-size: 24px; text-align: right; color: #ffff00; }
-        
+        #ability-ui { position: absolute; bottom: 65px; left: 40px; font-size: 14px; font-weight: bold; }
         #minimap { position: absolute; top: 20px; left: 20px; width: 180px; height: 180px; background: rgba(0,0,0,0.8); border: 2px solid #00ffff; border-radius: 50%; overflow: hidden; }
         #map-canvas { width: 100%; height: 100%; }
-
         .nickname { position: absolute; font-weight: bold; font-size: 11px; text-shadow: 2px 2px 2px black; pointer-events: none; text-align: center; }
-        #version-tag { position: fixed; bottom: 10px; right: 15px; font-size: 12px; color: rgba(0, 255, 255, 0.5); z-index: 1001; }
     </style>
 </head>
 <body>
 
-<div id="version-tag">BUILD: v0.22.total_war</div>
 <div id="menu">
     <div class="menu-title">CHAOS ARENA</div>
-    <div class="btn" onclick="startGame()">НАЧАТЬ МИССИЮ</div>
+    <div class="btn" onclick="startGame()">INITIALIZE</div>
 </div>
 
 <div id="ui">
     <div id="minimap"><canvas id="map-canvas"></canvas></div>
     <div id="hp-bar"><div id="hp-fill"></div></div>
-    <div id="ability-ui">SHIFT: PHANTOM <span id="ability-status">READY</span></div>
-    <div id="weapon-info">ОРУЖИЕ: <span id="current-weapon">PISTOL</span></div>
-    <div id="stats" style="position: absolute; top: 20px; right: 30px; font-size: 20px;">KILLS: <span id="kills">0</span></div>
+    <div id="ability-ui">PHANTOM [SHIFT]: <span id="ability-status">READY</span></div>
+    <div id="stats" style="position: absolute; top: 20px; right: 30px; font-size: 20px;">KILLS: <span id="kills">0</span> | ALIVE: <span id="alive">0</span></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 let scene, camera, renderer, player, clock, mapCtx;
 let gameActive = false, entities = [], bullets = [], buildings = [], medkits = [], lootBoxes = [];
-let keys = {}, score = 0, zoneMesh, zoneRadius = 250, startTime, abilityCD = 0;
-
-const ALLY_COLOR = 0x0066ff, ENEMY_COLOR = 0xff3300, MED_COLOR = 0x00ff00, LOOT_COLOR = 0xffff00;
+let keys = {}, score = 0, zoneRadius = 250, startTime, abilityCD = 0;
 
 function startGame() {
     document.getElementById('menu').style.display = 'none';
@@ -73,43 +73,46 @@ function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
     
+    // ЛИНИИ ПОЛА (СЕТКА)
+    const grid = new THREE.GridHelper(1000, 50, 0x00ffff, 0x002222);
+    scene.add(grid);
+
     scene.add(new THREE.AmbientLight(0xffffff, 0.4));
     const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(50, 150, 50); scene.add(sun);
 
-    // Зона
     const zoneGeo = new THREE.CylinderGeometry(1, 1, 300, 64, 1, true);
     const zoneMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.1, side: THREE.DoubleSide });
     zoneMesh = new THREE.Mesh(zoneGeo, zoneMat); scene.add(zoneMesh);
 
-    // Генерация карты
-    for (let i = 0; i < 40; i++) {
-        let w = 15 + Math.random()*15, h = 10 + Math.random()*40;
-        const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), new THREE.MeshStandardMaterial({ color: 0x151515 }));
+    // Здания
+    for (let i = 0; i < 45; i++) {
+        let w = 15 + Math.random()*10, h = 10 + Math.random()*30;
+        const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), new THREE.MeshStandardMaterial({ color: 0x111111 }));
         b.position.set((Math.random()-0.5)*450, h/2, (Math.random()-0.5)*450);
         b.userData.box = new THREE.Box3().setFromObject(b);
         scene.add(b); buildings.push(b);
+    }
 
-        if(Math.random() > 0.6) { // Пандусы
-            const r = new THREE.Mesh(new THREE.BoxGeometry(8, 1, 30), new THREE.MeshStandardMaterial({ color: 0x222222 }));
-            r.position.set(b.position.x + w/2 + 5, h/2 - 2, b.position.z);
-            r.rotation.x = Math.PI / 8;
-            r.userData.box = new THREE.Box3().setFromObject(r);
-            scene.add(r); buildings.push(r);
-        }
+    // Рандомный спавн для всех
+    function getSafePos() {
+        let x, z;
+        do { x = (Math.random()-0.5)*400; z = (Math.random()-0.5)*400; } 
+        while (checkCollision(new THREE.Vector3(x, 0, z)));
+        return new THREE.Vector3(x, 0, z);
+    }
+
+    player = createUnit(0x00ffff, true, "YOU");
+    player.mesh.position.copy(getSafePos());
+    entities.push(player);
+
+    for (let i = 0; i < 25; i++) {
+        const bot = createUnit(0xff3300, false, "BOT_" + i);
+        bot.mesh.position.copy(getSafePos());
+        entities.push(bot);
     }
 
     for (let i = 0; i < 15; i++) spawnMedkit();
-    for (let i = 0; i < 10; i++) spawnLoot();
-
-    player = createUnit(ALLY_COLOR, true, 0, "YOU");
-    player.weapon = "PISTOL"; player.abilityActive = false;
-    entities.push(player);
-
-    for (let i = 1; i < 25; i++) {
-        const bot = createUnit(ENEMY_COLOR, false, i, "ENEMY");
-        bot.mesh.position.set((Math.random()-0.5)*400, 0, (Math.random()-0.5)*400);
-        entities.push(bot);
-    }
+    for (let i = 0; i < 8; i++) spawnLoot();
 
     startTime = Date.now();
     window.onkeydown = (e) => keys[e.code] = true;
@@ -117,28 +120,34 @@ function init() {
     gameActive = true; animate();
 }
 
+function checkCollision(pos) {
+    const pBox = new THREE.Box3().setFromCenterAndSize(pos, new THREE.Vector3(2.5, 4, 2.5));
+    for (let b of buildings) if (pBox.intersectsBox(b.userData.box)) return true;
+    return false;
+}
+
 function spawnMedkit() {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial({ color: MED_COLOR, emissive: MED_COLOR }));
-    m.position.set((Math.random()-0.5)*420, 1, (Math.random()-0.5)*420);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial({ color: 0x00ff00, emissive: 0x00ff00 }));
+    m.position.set((Math.random()-0.5)*400, 1, (Math.random()-0.5)*400);
     scene.add(m); medkits.push(m);
 }
 
 function spawnLoot() {
-    const type = Math.random() > 0.5 ? "AR" : "SG";
-    const l = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 3), new THREE.MeshStandardMaterial({ color: LOOT_COLOR, emissive: LOOT_COLOR, emissiveIntensity: 0.5 }));
-    l.position.set((Math.random()-0.5)*420, 1, (Math.random()-0.5)*420);
-    l.userData = { type }; scene.add(l); lootBoxes.push(l);
+    const l = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 3), new THREE.MeshStandardMaterial({ color: 0xffff00, emissive: 0xffff00 }));
+    l.position.set((Math.random()-0.5)*400, 1, (Math.random()-0.5)*400);
+    l.userData = { type: Math.random() > 0.5 ? "AR" : "SG" };
+    scene.add(l); lootBoxes.push(l);
 }
 
-function createUnit(color, isPlayer = false, teamId, nameText) {
+function createUnit(color, isPlayer = false, name) {
     const group = new THREE.Group();
     const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 3.2, 1.6), new THREE.MeshStandardMaterial({ color, transparent: true }));
     body.position.y = 1.6; group.add(body);
     const shield = new THREE.Mesh(new THREE.SphereGeometry(2.5, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 }));
     shield.position.y = 1.6; group.add(shield);
     scene.add(group);
-    const el = document.createElement('div'); el.className = 'nickname'; el.style.color = teamId === 0 ? "#00ffff" : "#ff4444"; document.body.appendChild(el);
-    return { mesh: group, shield, body, hp: 200, maxHp: 200, isPlayer, lastShot: 0, teamId, label: el, nameBase: nameText, color: new THREE.Color(color), abilityActive: false, weapon: "PISTOL" };
+    const el = document.createElement('div'); el.className = 'nickname'; el.style.color = isPlayer ? "#00ffff" : "#ff4444"; document.body.appendChild(el);
+    return { mesh: group, shield, body, hp: 200, isPlayer, lastShot: 0, label: el, nameBase: name, color: new THREE.Color(color), weapon: "PISTOL", abilityActive: false };
 }
 
 function animate() {
@@ -148,52 +157,62 @@ function animate() {
 
     zoneRadius -= 0.04; zoneMesh.scale.set(zoneRadius, 1, zoneRadius);
 
-    // Способность M-1 (PHANTOM)
+    // Способность Фантом
     if(keys['ShiftLeft'] && abilityCD <= 0 && player.isPlayer) {
         player.abilityActive = true; abilityCD = 8000;
-        setTimeout(() => { player.abilityActive = false; }, 2000);
+        setTimeout(() => player.abilityActive = false, 2000);
     }
     if(abilityCD > 0) abilityCD -= delta * 1000;
     document.getElementById('ability-status').innerText = abilityCD <= 0 ? "READY" : Math.ceil(abilityCD/1000) + "s";
     player.body.material.opacity = player.abilityActive ? 0.3 : 1.0;
 
-    // Лут и Аптечки
-    lootBoxes.forEach((l, i) => { if(player.mesh.position.distanceTo(l.position) < 3) { player.weapon = l.userData.type; document.getElementById('current-weapon').innerText = player.weapon; scene.remove(l); lootBoxes.splice(i, 1); setTimeout(spawnLoot, 15000); }});
+    // Сбор лута
+    lootBoxes.forEach((l, i) => { if(player.mesh.position.distanceTo(l.position) < 3) { player.weapon = l.userData.type; scene.remove(l); lootBoxes.splice(i, 1); setTimeout(spawnLoot, 15000); }});
     medkits.forEach((m, i) => { if(player.mesh.position.distanceTo(m.position) < 3) { player.hp = Math.min(200, player.hp + 60); scene.remove(m); medkits.splice(i, 1); setTimeout(spawnMedkit, 10000); }});
 
     entities.forEach(ent => {
         const oldPos = ent.mesh.position.clone();
         if (ent.isPlayer) {
-            let speed = ent.abilityActive ? 0.8 : 0.5;
-            if (keys['KeyW']) ent.mesh.translateZ(speed);
-            if (keys['KeyS']) ent.mesh.translateZ(-speed);
+            if (keys['KeyW']) ent.mesh.translateZ(ent.abilityActive ? 0.8 : 0.5);
+            if (keys['KeyS']) ent.mesh.translateZ(-0.4);
             if (keys['KeyA']) ent.mesh.rotation.y += 0.07;
             if (keys['KeyD']) ent.mesh.rotation.y -= 0.07;
             
             let delay = ent.weapon === "AR" ? 150 : (ent.weapon === "SG" ? 800 : 250);
             if (keys['Space'] && !ent.abilityActive && now - ent.lastShot > delay) {
-                if(ent.weapon === "SG") { for(let j=-2; j<=2; j++) spawnBullet(ent, j*0.15); }
-                else spawnBullet(ent);
+                if(ent.weapon === "SG") { for(let j=-2; j<=2; j++) spawnBullet(ent, j*0.15); } else spawnBullet(ent);
                 ent.lastShot = now;
             }
         } else {
-            ent.mesh.lookAt(player.mesh.position);
-            if (ent.mesh.position.distanceTo(player.mesh.position) > 15) ent.mesh.translateZ(0.24);
-            if (now - ent.lastShot > 1200) { spawnBullet(ent); ent.lastShot = now; }
+            // ИИ: Поиск БЛИЖАЙШЕГО врага (не только игрока)
+            let target = null, dMin = 150;
+            entities.forEach(other => {
+                if (other !== ent) {
+                    let d = ent.mesh.position.distanceTo(other.mesh.position);
+                    if (d < dMin) { dMin = d; target = other; }
+                }
+            });
+
+            if (target) {
+                ent.mesh.lookAt(target.mesh.position);
+                if (dMin > 12) ent.mesh.translateZ(0.25);
+                if (now - ent.lastShot > 1000 && dMin < 60) { spawnBullet(ent); ent.lastShot = now; }
+            } else {
+                ent.mesh.rotation.y += 0.02; // Патрулирование
+            }
         }
 
-        const pBox = new THREE.Box3().setFromCenterAndSize(ent.mesh.position, new THREE.Vector3(2, 4, 2));
-        for (let b of buildings) if (pBox.intersectsBox(b.userData.box)) ent.mesh.position.copy(oldPos);
-        if (ent.mesh.position.length() > zoneRadius) ent.hp -= 0.6;
+        if (checkCollision(ent.mesh.position)) ent.mesh.position.copy(oldPos);
+        if (ent.mesh.position.length() > zoneRadius) ent.hp -= 0.5;
         ent.shield.visible = (now - startTime < 3000) || ent.abilityActive;
     });
 
     // Пули
     for (let i = bullets.length - 1; i >= 0; i--) {
-        const b = bullets[i]; b.mesh.position.add(b.dir.clone().multiplyScalar(2.8));
+        const b = bullets[i]; b.mesh.position.add(b.dir.clone().multiplyScalar(3));
         let hit = false;
         for (let target of entities) {
-            if (target === b.owner || target.teamId === b.owner.teamId || target.abilityActive || (now - startTime < 3000)) continue;
+            if (target === b.owner || target.abilityActive || (now - startTime < 3000)) continue;
             if (b.mesh.position.distanceTo(target.mesh.position.clone().add(new THREE.Vector3(0,1.6,0))) < 2.5) {
                 target.hp -= (b.owner.weapon === "SG" ? 35 : 20); hit = true;
                 if (b.owner.isPlayer && target.hp <= 0) score++; break;
@@ -202,16 +221,16 @@ function animate() {
         if (hit || b.mesh.position.length() > 800) { scene.remove(b.mesh); bullets.splice(i, 1); }
     }
 
-    // Очистка мертвых
+    // Удаление павших
     for(let i=entities.length-1; i>=0; i--) {
         if(entities[i].hp <= 0) {
-            if(entities[i].isPlayer) { alert("ВЫ ПОГИБЛИ. СЧЕТ: " + score); location.reload(); }
+            if(entities[i].isPlayer) { alert("ВЫ ПРОИГРАЛИ! УБИЙСТВ: " + score); location.reload(); }
             entities[i].label.remove(); scene.remove(entities[i].mesh); entities.splice(i, 1);
         }
     }
 
     drawMinimap(); updateUI();
-    camera.position.lerp(new THREE.Vector3(player.mesh.position.x, 75, player.mesh.position.z + 65), 0.1);
+    camera.position.lerp(new THREE.Vector3(player.mesh.position.x, 70, player.mesh.position.z + 60), 0.1);
     camera.lookAt(player.mesh.position); renderer.render(scene, camera);
 }
 
@@ -226,8 +245,7 @@ function spawnBullet(owner, angle = 0) {
 function drawMinimap() {
     const s = 180, sc = s/600, c = s/2; mapCtx.clearRect(0,0,s,s);
     mapCtx.strokeStyle = "red"; mapCtx.beginPath(); mapCtx.arc(c - player.mesh.position.x*sc, c - player.mesh.position.z*sc, zoneRadius*sc, 0, Math.PI*2); mapCtx.stroke();
-    entities.forEach(e => { mapCtx.fillStyle = e.isPlayer ? "#fff" : (e.teamId === 0 ? "#00f" : "#f00"); mapCtx.fillRect(c + (e.mesh.position.x-player.mesh.position.x)*sc-2, c + (e.mesh.position.z-player.mesh.position.z)*sc-2, 4, 4); });
-    lootBoxes.forEach(l => { mapCtx.fillStyle = "#ff0"; mapCtx.fillRect(c + (l.position.x-player.mesh.position.x)*sc-2, c + (l.position.z-player.mesh.position.z)*sc-2, 3, 3); });
+    entities.forEach(e => { mapCtx.fillStyle = e.isPlayer ? "#00ffff" : "#ff3300"; mapCtx.fillRect(c + (e.mesh.position.x-player.mesh.position.x)*sc-2, c + (e.mesh.position.z-player.mesh.position.z)*sc-2, 4, 4); });
 }
 
 function updateUI() {
@@ -242,6 +260,7 @@ function updateUI() {
     });
     document.getElementById('hp-fill').style.width = (player.hp / 2) + "%";
     document.getElementById('kills').innerText = score;
+    document.getElementById('alive').innerText = entities.length;
 }
 </script>
 </body>
