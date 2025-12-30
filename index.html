@@ -2,130 +2,121 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Chaos Arena v30: Survival Evolved</title>
+    <title>Chaos Arena v30.3</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #00ffff; user-select: none; }
         
-        /* МЕНЮ В СТИЛЕ ЛЕВОЙ ПАНЕЛИ */
-        #menu { position: fixed; inset: 0; background: radial-gradient(circle at 20% 50%, #0a1a2a 0%, #000 100%); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding-left: 10%; z-index: 2000; }
-        .menu-title { font-size: 50px; letter-spacing: 8px; text-shadow: 0 0 20px #00ffff; margin-bottom: 40px; }
+        /* МЕНЮ СЛЕВА */
+        #menu { position: fixed; inset: 0; background: radial-gradient(circle at 15% 50%, #051a2a 0%, #000 100%); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding-left: 80px; z-index: 2000; }
+        .menu-title { font-size: 50px; letter-spacing: 10px; text-shadow: 0 0 25px #00ffff; margin-bottom: 40px; }
+        .btn-list { display: flex; flex-direction: column; gap: 15px; }
+        .btn { background: rgba(0,20,30,0.8); color: #008888; border: 2px solid #004444; padding: 15px 40px; font-size: 18px; cursor: pointer; transition: 0.3s; text-align: left; min-width: 250px; clip-path: polygon(0% 0%, 90% 0%, 100% 100%, 0% 100%); }
+        .btn:hover { color: #00ffff; border-color: #00ffff; transform: translateX(10px); }
+        .btn.selected { background: #00ffff !important; color: #000 !important; border-color: #00ffff; box-shadow: 0 0 30px #00ffff; }
         
-        .btn-group { display: flex; flex-direction: column; gap: 15px; }
-        .btn { background: rgba(0,40,40,0.5); color: #00ffff; border: 2px solid #004444; padding: 15px 40px; font-size: 18px; cursor: pointer; transition: 0.3s; text-align: left; min-width: 250px; clip-path: polygon(0% 0%, 90% 0%, 100% 100%, 0% 100%); }
-        .btn:hover { background: rgba(0,255,255,0.2); border-color: #00ffff; transform: translateX(10px); }
-        .btn.selected { background: #00ffff; color: #000; border-color: #00ffff; box-shadow: 0 0 30px #00ffff; }
-        
-        /* ИНТЕРФЕЙС ИГРЫ */
+        /* ГЕЙМПЛЕЙ UI */
         #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
-        #hp-bar { width: 350px; height: 12px; background: rgba(255,0,0,0.2); border: 1px solid #00ffff; position: absolute; bottom: 40px; left: 40px; transform: skewX(-30deg); }
-        #hp-fill { width: 100%; height: 100%; background: #00ffff; box-shadow: 0 0 15px #00ffff; transition: 0.2s; }
-        
-        #minimap { position: absolute; top: 30px; left: 30px; width: 160px; height: 160px; background: rgba(0,10,20,0.8); border: 2px solid #00ffff; border-radius: 5px; }
+        #hp-bar { width: 350px; height: 12px; background: rgba(255,0,0,0.1); border: 2px solid #00ffff; position: absolute; bottom: 40px; left: 40px; transform: skewX(-25deg); }
+        #hp-fill { width: 100%; height: 100%; background: #00ffff; box-shadow: 0 0 15px #00ffff; }
+        #minimap { position: absolute; top: 30px; left: 30px; width: 160px; height: 160px; background: rgba(0,5,10,0.9); border: 2px solid #00ffff; }
         #map-canvas { width: 100%; height: 100%; }
+        #version { position: fixed; bottom: 15px; right: 20px; font-size: 12px; color: #00ffff; opacity: 0.5; }
+        #stats { position: absolute; top: 30px; right: 40px; text-align: right; font-size: 20px; }
         
-        #version { position: fixed; bottom: 20px; right: 20px; font-size: 14px; opacity: 0.6; color: #00ffff; }
-        .nickname { position: absolute; font-weight: bold; font-size: 11px; text-shadow: 1px 1px 2px #000; pointer-events: none; text-align: center; white-space: nowrap; transform: translate(-50%, -100%); }
+        /* ЭКРАН СМЕРТИ */
+        #game-over { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; border: 4px solid #ff0000; }
+        #death-score { font-size: 40px; color: #ff0000; margin-bottom: 20px; text-shadow: 0 0 20px #ff0000; }
         
-        .alert { position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%); color: #ff0000; font-size: 24px; font-weight: bold; letter-spacing: 5px; display: none; }
+        .nickname { position: absolute; font-size: 12px; font-weight: bold; text-shadow: 1px 1px 2px #000; pointer-events: none; transform: translate(-50%, -120%); }
     </style>
 </head>
 <body>
 
 <div id="menu">
     <div class="menu-title">CHAOS ARENA</div>
-    <div class="btn-group">
-        <div class="btn selected" onclick="selectHero(this, 'SOLDIER')">UNIT: SOLDIER</div>
-        <div class="btn" onclick="selectHero(this, 'TANK')">UNIT: TANK</div>
-        <div class="btn" onclick="selectHero(this, 'ASSASSIN')">UNIT: ASSASSIN</div>
-        <div class="btn" onclick="startGame()" style="margin-top: 30px; border-color: #00ff00; color: #00ff00;">INITIALIZE DEPLOYMENT</div>
+    <div class="btn-list">
+        <div id="btn-SOLDIER" class="btn selected" onclick="pickHero('SOLDIER')">UNIT: SOLDIER</div>
+        <div id="btn-TANK" class="btn" onclick="pickHero('TANK')">UNIT: TANK</div>
+        <div id="btn-ASSASSIN" class="btn" onclick="pickHero('ASSASSIN')">UNIT: ASSASSIN</div>
+        <div class="btn" onclick="initGame()" style="margin-top: 30px; color: #00ff00; border-color: #00ff00;">DEPLOY NOW</div>
     </div>
 </div>
 
+<div id="game-over">
+    <div id="death-score">MISSION FAILED</div>
+    <div style="font-size: 20px; margin-bottom: 30px;">SCORE: <span id="final-kills">0</span></div>
+    <div class="btn" onclick="location.reload()" style="text-align: center; border-color: #00ffff; color: #00ffff;">BACK TO MENU</div>
+</div>
+
 <div id="ui">
-    <div class="alert" id="zone-alert">ZONE SHRINKING</div>
     <div id="minimap"><canvas id="map-canvas" width="160" height="160"></canvas></div>
     <div id="hp-bar"><div id="hp-fill"></div></div>
-    <div style="position: absolute; top: 30px; right: 40px; text-align: right;">
-        KILLS: <span id="kills">0</span><br>
-        ALIVE: <span id="alive">0</span>
-    </div>
-    <div id="version">SYSTEM VERSION: v30.0.STABLE</div>
+    <div id="stats">KILLS: <span id="val-k">0</span> | ALIVE: <span id="val-a">0</span></div>
+    <div id="version">BUILD v30.3 // RECOVERY_MODE</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 let scene, camera, renderer, player, clock, mapCtx;
-let gameActive = false, entities = [], bullets = [], buildings = [], items = [];
-let keys = {}, mouse = { x: 0, y: 0, down: false };
-let score = 0, zoneRadius = 350;
+let gameRunning = false, entities = [], bullets = [], buildings = [], loot = [];
+let keys = {}, mouse = { x: 0, y: 0 }, isFiring = false;
+let score = 0, zoneRad = 400;
 let selHero = 'SOLDIER';
 
-const HEROES = {
-    'SOLDIER':  { hp: 200, spd: 0.5, color: 0x00ffff, size: 1.8, weapon: 'AR' },
-    'TANK':     { hp: 450, spd: 0.35, color: 0x55ff55, size: 2.6, weapon: 'SG' },
-    'ASSASSIN': { hp: 130, spd: 0.75, color: 0xff00ff, size: 1.5, weapon: 'PISTOL' }
+const HERO_DATA = {
+    'SOLDIER':  { hp: 200, spd: 0.6, color: 0x00ffff, size: 2.0 },
+    'TANK':     { hp: 500, spd: 0.38, color: 0x55ff88, size: 3.0 },
+    'ASSASSIN': { hp: 130, spd: 0.85, color: 0xff00ff, size: 1.6 }
 };
 
-function selectHero(el, type) {
-    document.querySelectorAll('.btn').forEach(b => b.classList.remove('selected'));
-    el.classList.add('selected');
+function pickHero(type) {
     selHero = type;
+    document.querySelectorAll('.btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('btn-' + type).classList.add('selected');
 }
 
-function startGame() {
+function initGame() {
     document.getElementById('menu').style.display = 'none';
     document.getElementById('ui').style.display = 'block';
     mapCtx = document.getElementById('map-canvas').getContext('2d');
-    init();
-}
-
-function init() {
+    
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x020508);
+    scene.background = new THREE.Color(0x010408);
     clock = new THREE.Clock();
     
-    camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 1000);
+    camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 1, 1000);
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    const sun = new THREE.PointLight(0x00ffff, 1, 1000);
-    sun.position.set(0, 200, 0);
-    scene.add(sun);
-
-    const grid = new THREE.GridHelper(1000, 50, 0x00ffff, 0x002222);
+    const grid = new THREE.GridHelper(1000, 50, 0x00ffff, 0x001a1a);
     scene.add(grid);
 
-    // Зона
-    zoneMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(1, 1, 500, 64, 1, true),
-        new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.1, side: THREE.DoubleSide })
-    );
-    scene.add(zoneMesh);
+    zoneCyl = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 500, 64, 1, true), new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.1, side: THREE.DoubleSide }));
+    scene.add(zoneCyl);
 
-    // Постройки
-    for (let i = 0; i < 45; i++) {
-        let h = 20 + Math.random()*40;
-        const b = new THREE.Mesh(new THREE.BoxGeometry(20, h, 20), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-        b.position.set((Math.random()-0.5)*500, h/2, (Math.random()-0.5)*500);
+    for (let i = 0; i < 40; i++) {
+        let h = 25 + Math.random()*50;
+        const b = new THREE.Mesh(new THREE.BoxGeometry(25, h, 25), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+        b.position.set((Math.random()-0.5)*600, h/2, (Math.random()-0.5)*600);
         b.userData.box = new THREE.Box3().setFromObject(b);
         scene.add(b); buildings.push(b);
     }
 
-    // Игрок
-    player = createUnit(selHero, 0, "YOU", true);
+    player = spawnUnit(selHero, 0, "YOU", true);
     entities.push(player);
 
-    // Боты (враги)
-    for (let i = 0; i < 29; i++) {
-        const types = Object.keys(HEROES);
-        entities.push(createUnit(types[Math.floor(Math.random()*3)], 1, "HOSTILE", false));
+    for (let i = 0; i < 25; i++) {
+        const t = Object.keys(HERO_DATA)[Math.floor(Math.random()*3)];
+        entities.push(spawnUnit(t, 1, "HOSTILE", false));
     }
 
-    // Предметы
-    for(let i=0; i<15; i++) spawnItem('MED', 0x00ff00);
-    for(let i=0; i<10; i++) spawnItem('LOOT', 0xffff00);
+    for(let i=0; i<15; i++) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(3,3,3), new THREE.MeshStandardMaterial({ color: 0x00ff00, emissive: 0x00ff00 }));
+        m.position.set((Math.random()-0.5)*500, 1.5, (Math.random()-0.5)*500);
+        scene.add(m); loot.push(m);
+    }
 
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
@@ -133,23 +124,15 @@ function init() {
         mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
         mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     });
-    window.addEventListener('mousedown', () => mouse.down = true);
-    window.addEventListener('mouseup', () => mouse.down = false);
+    window.addEventListener('mousedown', () => isFiring = true);
+    window.addEventListener('mouseup', () => isFiring = false);
     
-    gameActive = true;
-    animate();
+    gameRunning = true;
+    update();
 }
 
-function spawnItem(type, color) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), new THREE.MeshStandardMaterial({ color, emissive: color }));
-    mesh.position.set((Math.random()-0.5)*400, 1, (Math.random()-0.5)*400);
-    mesh.userData = { type };
-    scene.add(mesh);
-    items.push(mesh);
-}
-
-function createUnit(type, team, name, isPlayer) {
-    const d = HEROES[type];
+function spawnUnit(type, team, name, isPlayer) {
+    const d = HERO_DATA[type];
     const group = new THREE.Group();
     const body = new THREE.Mesh(new THREE.BoxGeometry(d.size, d.size*2, d.size), new THREE.MeshStandardMaterial({ color: d.color }));
     body.position.y = d.size;
@@ -160,125 +143,112 @@ function createUnit(type, team, name, isPlayer) {
     label.style.color = team === 0 ? "#00ffff" : "#ff4444";
     document.body.appendChild(label);
     
-    group.position.set((Math.random()-0.5)*400, 0, (Math.random()-0.5)*400);
+    group.position.set((Math.random()-0.5)*500, 0, (Math.random()-0.5)*500);
     scene.add(group);
     
-    return { 
-        mesh: group, body, hp: d.hp, max: d.hp, spd: d.spd, team, name, label, type, isPlayer, 
-        weapon: d.weapon, lastShot: 0, dashCooldown: 0, isDashing: false 
-    };
+    return { mesh: group, body, hp: d.hp, max: d.hp, spd: d.spd, team, label, type, isPlayer, lastShot: 0, cdQ: 0, isDashing: false };
 }
 
-function animate() {
-    if (!gameActive) return;
-    requestAnimationFrame(animate);
+function update() {
+    if (!gameRunning) return;
+    requestAnimationFrame(update);
+    const dt = clock.getDelta();
     const now = Date.now();
-    const delta = clock.getDelta();
 
-    zoneRadius -= 0.04;
-    zoneMesh.scale.set(zoneRadius, 1, zoneRadius);
+    zoneRad -= 0.05;
+    zoneCyl.scale.set(zoneRad, 1, zoneRad);
 
-    // Управление игроком (Взгляд на мышь)
     if(player.hp > 0) {
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, camera);
+        const ray = new THREE.Raycaster();
+        ray.setFromCamera(mouse, camera);
         const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-        const intersectPoint = new THREE.Vector3();
-        raycaster.ray.intersectPlane(plane, intersectPoint);
-        player.mesh.lookAt(intersectPoint.x, 0, intersectPoint.z);
+        const pt = new THREE.Vector3();
+        if(ray.ray.intersectPlane(plane, pt)) player.mesh.lookAt(pt.x, 0, pt.z);
 
         const oldPos = player.mesh.position.clone();
-        let moveX = 0, moveZ = 0;
-        if (keys['KeyW']) moveZ -= 1; if (keys['KeyS']) moveZ += 1;
-        if (keys['KeyA']) moveX -= 1; if (keys['KeyD']) moveX += 1;
-        
-        let moveVec = new THREE.Vector3(moveX, 0, moveZ).normalize().multiplyScalar(player.spd);
-        player.mesh.position.add(moveVec);
+        let moveVec = new THREE.Vector3(0,0,0);
+        if (keys['KeyW']) moveVec.z -= 1; if (keys['KeyS']) moveVec.z += 1;
+        if (keys['KeyA']) moveVec.x -= 1; if (keys['KeyD']) moveVec.x += 1;
+        player.mesh.position.add(moveVec.normalize().multiplyScalar(player.spd));
 
-        // Навык Q для Ассасина
-        if(keys['KeyQ'] && player.type === 'ASSASSIN' && player.dashCooldown <= 0) {
-            player.isDashing = true;
-            player.dashCooldown = 2000;
+        if(keys['KeyQ'] && player.type === 'ASSASSIN' && player.cdQ <= 0) {
+            player.isDashing = true; player.cdQ = 2.5;
             setTimeout(() => player.isDashing = false, 300);
         }
         if(player.isDashing) {
-            player.mesh.translateZ(1.5); // Быстрый рывок вперед
-            player.body.scale.set(0.6, 1, 1.8); // Сужение тела (анимация)
+            player.mesh.translateZ(1.8);
+            player.body.scale.set(0.6, 1, 2.0);
         } else {
             player.body.scale.set(1, 1, 1);
         }
-        if(player.dashCooldown > 0) player.dashCooldown -= delta * 1000;
+        if(player.cdQ > 0) player.cdQ -= dt;
 
-        // Стрельба
-        if(mouse.down && now - player.lastShot > (player.weapon === 'SG' ? 800 : 200)) {
-            fire(player);
-            player.lastShot = now;
+        if(isFiring && now - player.lastShot > 180) {
+            shoot(player); player.lastShot = now;
         }
 
-        // Коллизии игрока
         let pBox = new THREE.Box3().setFromCenterAndSize(player.mesh.position, new THREE.Vector3(3, 5, 3));
         for (let b of buildings) if (pBox.intersectsBox(b.userData.box)) player.mesh.position.copy(oldPos);
     }
 
-    // Логика ботов и пуль
     entities.forEach(ent => {
-        if(ent.isPlayer) return;
-        // Простой ИИ врагов
-        let dist = ent.mesh.position.distanceTo(player.mesh.position);
-        if(dist < 100 && player.hp > 0) {
-            ent.mesh.lookAt(player.mesh.position.x, 0, player.mesh.position.z);
-            if(dist > 15) ent.mesh.translateZ(ent.spd * 0.7);
-            if(now - ent.lastShot > 1000) { fire(ent); ent.lastShot = now; }
+        if(!ent.isPlayer && ent.hp > 0) {
+            let dist = ent.mesh.position.distanceTo(player.mesh.position);
+            if(dist < 100 && player.hp > 0) {
+                ent.mesh.lookAt(player.mesh.position.x, 0, player.mesh.position.z);
+                if(dist > 20) ent.mesh.translateZ(ent.spd * 0.7);
+                if(now - ent.lastShot > 1200) { shoot(ent); ent.lastShot = now; }
+            }
         }
-        if (ent.mesh.position.length() > zoneRadius) ent.hp -= 0.5;
+        if (ent.mesh.position.length() > zoneRad) ent.hp -= 0.5;
     });
 
-    // Пули
     for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
         b.mesh.position.add(b.dir.clone().multiplyScalar(4));
         let hit = false;
         entities.forEach(e => {
             if(e.hp > 0 && e.team !== b.owner.team && b.mesh.position.distanceTo(e.mesh.position) < 4) {
-                e.hp -= 30; hit = true;
+                e.hp -= 35; hit = true;
                 if(b.owner.isPlayer && e.hp <= 0) score++;
             }
         });
-        if(hit || b.mesh.position.length() > 800) { scene.remove(b.mesh); bullets.splice(i, 1); }
+        if(hit || b.mesh.position.length() > 1000) { scene.remove(b.mesh); bullets.splice(i, 1); }
     }
 
-    // Предметы
-    for(let i = items.length - 1; i >= 0; i--) {
-        if(player.mesh.position.distanceTo(items[i].position) < 5) {
-            if(items[i].userData.type === 'MED') player.hp = Math.min(player.max, player.hp + 50);
-            if(items[i].userData.type === 'LOOT') player.weapon = 'AR';
-            scene.remove(items[i]); items.splice(i, 1);
+    for(let i = loot.length - 1; i >= 0; i--) {
+        if(player.mesh.position.distanceTo(loot[i].position) < 5) {
+            player.hp = Math.min(player.max, player.hp + 50);
+            scene.remove(loot[i]); loot.splice(i, 1);
         }
     }
 
-    // Смерть
     for (let i = entities.length - 1; i >= 0; i--) {
         if (entities[i].hp <= 0) {
-            if (entities[i].isPlayer) { alert("MISSION FAILED"); location.reload(); return; }
+            if (entities[i].isPlayer) { showDeathScreen(); return; }
             entities[i].label.remove(); scene.remove(entities[i].mesh); entities.splice(i, 1);
         }
     }
 
-    // Камера (следит за игроком)
-    camera.position.set(player.mesh.position.x, 90, player.mesh.position.z + 50);
+    camera.position.set(player.mesh.position.x, 90, player.mesh.position.z + 55);
     camera.lookAt(player.mesh.position);
-
     updateUI();
     renderer.render(scene, camera);
 }
 
-function fire(owner) {
-    const bMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5), new THREE.MeshBasicMaterial({ color: owner.team === 0 ? 0x00ffff : 0xff0000 }));
-    bMesh.position.copy(owner.mesh.position).add(new THREE.Vector3(0, 2, 0));
-    // Пуля летит в сторону взгляда персонажа
+function showDeathScreen() {
+    gameRunning = false;
+    document.getElementById('ui').style.display = 'none';
+    document.getElementById('game-over').style.display = 'flex';
+    document.getElementById('final-kills').innerText = score;
+}
+
+function shoot(owner) {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.5), new THREE.MeshBasicMaterial({ color: owner.team === 0 ? 0x00ffff : 0xff3300 }));
+    b.position.copy(owner.mesh.position).add(new THREE.Vector3(0, 2.5, 0));
     const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(owner.mesh.quaternion);
-    bullets.push({ mesh: bMesh, dir, owner });
-    scene.add(bMesh);
+    bullets.push({ mesh: b, dir, owner });
+    scene.add(b);
 }
 
 function updateUI() {
@@ -286,15 +256,15 @@ function updateUI() {
         const v = e.mesh.position.clone().add(new THREE.Vector3(0, 6, 0)).project(camera);
         e.label.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
         e.label.style.top = `${(-(v.y * 0.5 - 0.5) * window.innerHeight)}px`;
-        e.label.innerText = e.hp > 0 ? e.name : "";
+        e.label.innerText = e.hp > 0 ? (e.isPlayer ? "YOU" : "HOSTILE") : "";
     });
     document.getElementById('hp-fill').style.width = (player.hp / player.max * 100) + "%";
-    document.getElementById('alive').innerText = entities.length;
-    document.getElementById('kills').innerText = score;
+    document.getElementById('val-a').innerText = entities.length;
+    document.getElementById('val-k').innerText = score;
 
     mapCtx.clearRect(0,0,160,160);
     entities.forEach(e => {
-        mapCtx.fillStyle = e.isPlayer ? "#fff" : "#f00";
+        mapCtx.fillStyle = e.isPlayer ? "#0ff" : "#f33";
         let mx = 80 + (e.mesh.position.x - player.mesh.position.x) * 0.3;
         let my = 80 + (e.mesh.position.z - player.mesh.position.z) * 0.3;
         mapCtx.fillRect(mx-2, my-2, 4, 4);
