@@ -2,276 +2,306 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Chaos Arena v27: Final Fix</title>
+    <title>Chaos Arena v28</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #00ffff; user-select: none; }
-        
-        #menu { position: fixed; inset: 0; background: radial-gradient(circle at 50% 50%, #0a1a2a 0%, #000 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; border: 10px solid #001a1a; }
-        .menu-title { font-size: 60px; letter-spacing: 10px; text-shadow: 0 0 20px #00ffff; margin-bottom: 30px; }
-        
-        .row { display: flex; gap: 15px; margin-bottom: 20px; }
-        .btn { background: rgba(0,40,40,0.5); color: #00ffff; border: 2px solid #00ffff; padding: 15px 25px; font-size: 16px; cursor: pointer; transition: 0.2s; font-weight: bold; min-width: 160px; text-align: center; }
-        .btn:hover { background: rgba(0,255,255,0.2); box-shadow: 0 0 15px #00ffff; }
-        .btn.selected { background: #00ffff !important; color: #000 !important; }
-        
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, sans-serif; color: #00ffff; user-select: none; }
+        #menu { position: fixed; inset: 0; background: #050a10; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; border: 5px solid #004444; }
+        .menu-title { font-size: clamp(30px, 8vw, 60px); letter-spacing: 5px; text-shadow: 0 0 20px #00ffff; margin-bottom: 20px; text-align: center; }
+        .row { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; }
+        .btn { background: #002222; color: #00ffff; border: 2px solid #00ffff; padding: 12px 20px; font-size: 14px; cursor: pointer; transition: 0.2s; min-width: 120px; text-align: center; font-weight: bold; }
+        .btn:hover { background: #004444; }
+        .btn.selected { background: #00ffff !important; color: #000 !important; box-shadow: 0 0 15px #00ffff; }
         #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: none; }
-        #hp-bar { width: 300px; height: 20px; background: #300; border: 2px solid #00ffff; position: absolute; bottom: 40px; left: 40px; }
-        #hp-fill { width: 100%; height: 100%; background: #00ffff; }
-        #class-display { position: absolute; bottom: 70px; left: 40px; font-size: 18px; text-transform: uppercase; }
-        #minimap { position: absolute; top: 20px; left: 20px; width: 180px; height: 180px; background: rgba(0,0,0,0.8); border: 2px solid #00ffff; border-radius: 50%; overflow: hidden; }
+        #hp-bar { width: 250px; height: 15px; background: #200; border: 2px solid #00ffff; position: absolute; bottom: 30px; left: 30px; }
+        #hp-fill { width: 100%; height: 100%; background: #00ffff; transition: 0.3s; }
+        #minimap { position: absolute; top: 20px; left: 20px; width: 150px; height: 150px; background: rgba(0,0,0,0.7); border: 2px solid #00ffff; border-radius: 10px; overflow: hidden; }
         #map-canvas { width: 100%; height: 100%; }
-        .nickname { position: absolute; font-weight: bold; font-size: 12px; text-shadow: 1px 1px 2px black; pointer-events: none; color: white; }
+        .nickname { position: absolute; font-weight: bold; font-size: 11px; text-shadow: 1px 1px 2px #000; pointer-events: none; white-space: nowrap; transform: translate(-50%, -100%); }
     </style>
 </head>
 <body>
 
 <div id="menu">
     <div class="menu-title">CHAOS ARENA</div>
-    
-    <div class="row" id="modes-row">
-        <div class="btn selected" onclick="setMode(this, 1)">SOLO</div>
-        <div class="btn" onclick="setMode(this, 2)">DUO</div>
-        <div class="btn" onclick="setMode(this, 4)">SQUAD</div>
+    <div class="row" id="modes">
+        <div class="btn selected" data-val="1">SOLO</div>
+        <div class="btn" data-val="2">DUO</div>
+        <div class="btn" data-val="4">SQUAD</div>
     </div>
-
-    <div class="row" id="heroes-row">
-        <div class="btn selected" onclick="setHero(this, 'SOLDIER')">SOLDIER</div>
-        <div class="btn" onclick="setHero(this, 'TANK')">TANK</div>
-        <div class="btn" onclick="setHero(this, 'ASSASSIN')">ASSASSIN</div>
+    <div class="row" id="heroes">
+        <div class="btn selected" data-val="SOLDIER">SOLDIER</div>
+        <div class="btn" data-val="TANK">TANK</div>
+        <div class="btn" data-val="ASSASSIN">ASSASSIN</div>
     </div>
-
-    <div class="btn" onclick="startGame()" style="margin-top: 30px; border-color: #ff00ff; color: #ff00ff; font-size: 24px;">START GAME</div>
+    <button class="btn" onclick="startGame()" style="margin-top:20px; padding: 20px 50px; font-size: 20px; border-color: #ff00ff; color: #ff00ff;">DEPLOY</button>
 </div>
 
 <div id="ui">
     <div id="minimap"><canvas id="map-canvas"></canvas></div>
     <div id="hp-bar"><div id="hp-fill"></div></div>
-    <div id="class-display">CLASS: <span id="ui-hero-name">SOLDIER</span></div>
-    <div style="position: absolute; top: 20px; right: 20px; font-size: 24px;">ALIVE: <span id="ui-alive">0</span></div>
+    <div style="position: absolute; top: 20px; right: 20px; font-size: 20px;">KILLS: <span id="ui-kills">0</span> | ALIVE: <span id="ui-alive">0</span></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 let scene, camera, renderer, player, clock, mapCtx;
 let gameActive = false, entities = [], bullets = [], buildings = [], missiles = [];
-let keys = {}, score = 0, zoneRadius = 280;
-let currentMode = 1, currentHero = 'SOLDIER';
+let keys = {}, score = 0, zoneRadius = 300;
+let selMode = 1, selHero = 'SOLDIER';
 
-const HERO_DATA = {
-    'SOLDIER':  { hp: 200, speed: 0.5, dmg: 1.0, color: 0x00ffff, size: 1.7 },
-    'TANK':     { hp: 400, speed: 0.35, dmg: 0.7, color: 0x55ff55, size: 2.3 },
-    'ASSASSIN': { hp: 120, speed: 0.75, dmg: 1.4, color: 0xaa00ff, size: 1.4 }
+// Инициализация кнопок меню
+document.querySelectorAll('#modes .btn').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#modes .btn').forEach(x => x.classList.remove('selected'));
+    b.classList.add('selected'); selMode = parseInt(b.dataset.val);
+});
+document.querySelectorAll('#heroes .btn').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#heroes .btn').forEach(x => x.classList.remove('selected'));
+    b.classList.add('selected'); selHero = b.dataset.val;
+});
+
+const DATA = {
+    'SOLDIER':  { hp: 200, speed: 0.55, dmg: 1.0, color: 0x00ffff, size: 1.8 },
+    'TANK':     { hp: 450, speed: 0.38, dmg: 0.7, color: 0x00ff88, size: 2.5 },
+    'ASSASSIN': { hp: 125, speed: 0.80, dmg: 1.5, color: 0xff00ff, size: 1.5 }
 };
-
-function setMode(el, m) {
-    document.querySelectorAll('#modes-row .btn').forEach(b => b.classList.remove('selected'));
-    el.classList.add('selected'); currentMode = m;
-}
-
-function setHero(el, h) {
-    document.querySelectorAll('#heroes-row .btn').forEach(b => b.classList.remove('selected'));
-    el.classList.add('selected'); currentHero = h;
-}
 
 function startGame() {
     document.getElementById('menu').style.display = 'none';
     document.getElementById('ui').style.display = 'block';
-    document.getElementById('ui-hero-name').innerText = currentHero;
+    mapCtx = document.getElementById('map-canvas').getContext('2d');
     init();
 }
 
 function init() {
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x02050a);
+    scene.background = new THREE.Color(0x020810);
     clock = new THREE.Clock();
+    
     camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Сетка пола
+    // Свет (сделал ярче, чтобы не было черного экрана)
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambient);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+    sun.position.set(100, 200, 100);
+    scene.add(sun);
+
+    // Земля
     const grid = new THREE.GridHelper(1000, 50, 0x00ffff, 0x002222);
     scene.add(grid);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
-    // Здания
+    // Зона
+    const zGeo = new THREE.CylinderGeometry(1, 1, 500, 64, 1, true);
+    const zMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.1, side: THREE.DoubleSide });
+    zoneMesh = new THREE.Mesh(zGeo, zMat);
+    scene.add(zoneMesh);
+
+    // Постройки
     for (let i = 0; i < 40; i++) {
-        let h = 20 + Math.random()*30;
-        const b = new THREE.Mesh(new THREE.BoxGeometry(15, h, 15), new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x00ffff, emissiveIntensity: 0.05 }));
-        b.position.set((Math.random()-0.5)*400, h/2, (Math.random()-0.5)*400);
+        let h = 20 + Math.random() * 40;
+        const b = new THREE.Mesh(
+            new THREE.BoxGeometry(18, h, 18),
+            new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7 })
+        );
+        b.position.set((Math.random()-0.5)*450, h/2, (Math.random()-0.5)*450);
         b.userData.box = new THREE.Box3().setFromObject(b);
-        scene.add(b); buildings.push(b);
+        scene.add(b);
+        buildings.push(b);
     }
 
-    // Игрок
-    player = spawnUnit(currentHero, 0, "YOU", true);
+    // Спавн
+    player = createUnit(selHero, 0, "YOU", true);
     entities.push(player);
 
-    // Боты
-    for (let i = 1; i < 30; i++) {
-        let team = Math.floor(i / currentMode);
-        if (currentMode > 1 && i < currentMode) team = 0;
-        const types = Object.keys(HERO_DATA);
-        const bot = spawnUnit(types[Math.floor(Math.random()*3)], team, team === 0 ? "ALLY" : "ENEMY", false);
-        entities.push(bot);
+    for (let i = 1; i < 25; i++) {
+        let team = Math.floor(i / selMode);
+        if (selMode > 1 && i < selMode) team = 0;
+        const types = Object.keys(DATA);
+        entities.push(createUnit(types[Math.floor(Math.random()*3)], team, team === 0 ? "ALLY" : "BOT", false));
     }
 
     window.onkeydown = (e) => keys[e.code] = true;
     window.onkeyup = (e) => keys[e.code] = false;
     
-    // Самолет каждые 15 сек
-    setInterval(launchPlane, 15000);
-    
-    gameActive = true; animate();
+    setInterval(spawnAirstrike, 12000);
+    gameActive = true;
+    animate();
 }
 
-function getSafePos() {
-    for(let i=0; i<30; i++) {
-        let x = (Math.random()-0.5)*380, z = (Math.random()-0.5)*380;
-        let testBox = new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(x, 2, z), new THREE.Vector3(5, 5, 5));
-        let collision = false;
-        for(let b of buildings) if(testBox.intersectsBox(b.userData.box)) { collision = true; break; }
-        if(!collision) return new THREE.Vector3(x, 0, z);
-    }
-    return new THREE.Vector3(0, 0, 0); // Если не нашли, то в центр
-}
-
-function spawnUnit(type, team, name, isPlayer) {
-    const data = HERO_DATA[type];
+function createUnit(type, team, name, isPlayer) {
+    const d = DATA[type];
     const group = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(data.size, data.size*2, data.size), new THREE.MeshStandardMaterial({ color: data.color }));
-    body.position.y = data.size; group.add(body);
+    const body = new THREE.Mesh(
+        new THREE.BoxGeometry(d.size, d.size*2, d.size),
+        new THREE.MeshStandardMaterial({ color: d.color })
+    );
+    body.position.y = d.size;
+    group.add(body);
     
-    const label = document.createElement('div'); label.className = 'nickname';
+    const label = document.createElement('div');
+    label.className = 'nickname';
     label.style.color = team === 0 ? "#00ffff" : "#ff4444";
     document.body.appendChild(label);
     
-    group.position.copy(getSafePos());
+    // Безопасный спавн
+    group.position.set((Math.random()-0.5)*350, 0, (Math.random()-0.5)*350);
     scene.add(group);
     
-    return { mesh: group, hp: data.hp, maxHp: data.hp, speed: data.speed, dmg: data.dmg, team, name, label, type, lastShot: 0, isPlayer, invuln: false };
+    return { mesh: group, hp: d.hp, max: d.hp, spd: d.spd, dmg: d.dmg, team, name, label, type, isPlayer, lastShot: 0 };
 }
 
-function launchPlane() {
-    const x = (Math.random()-0.5)*300, z = (Math.random()-0.5)*300;
-    const marker = new THREE.Mesh(new THREE.RingGeometry(1, 15, 32), new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
-    marker.rotation.x = -Math.PI/2; marker.position.set(x, 0.2, z); scene.add(marker);
-    
+function spawnAirstrike() {
+    const x = (Math.random()-0.5)*400, z = (Math.random()-0.5)*400;
+    const marker = new THREE.Mesh(
+        new THREE.RingGeometry(1, 15, 32),
+        new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.4, side: THREE.DoubleSide })
+    );
+    marker.rotation.x = -Math.PI/2;
+    marker.position.set(x, 0.5, z);
+    scene.add(marker);
+
     setTimeout(() => {
         const missile = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-        missile.position.set(x, 100, z); scene.add(missile);
-        missiles.push({ mesh: missile, target: new THREE.Vector3(x, 0, z), marker });
-    }, 2000);
+        missile.position.set(x, 150, z);
+        scene.add(missile);
+        missiles.push({ mesh: missile, target: new THREE.Vector3(x,0,z), marker });
+    }, 2500);
 }
 
 function animate() {
-    if (!gameActive) return; requestAnimationFrame(animate);
+    if (!gameActive) return;
+    requestAnimationFrame(animate);
     const now = Date.now();
 
-    // Зона
-    zoneRadius -= 0.02;
+    zoneRadius -= 0.025;
+    zoneMesh.scale.set(zoneRadius, 1, zoneRadius);
 
-    // Классовые пассивки
-    if(currentHero === 'ASSASSIN') {
-        player.invuln = (now % 4500) > 3000;
-        player.mesh.children[0].material.opacity = player.invuln ? 0.3 : 1.0;
+    // Пассивка Ассасина
+    if (player.type === 'ASSASSIN') {
+        const isGhost = (now % 4000) > 2500;
+        player.mesh.children[0].material.opacity = isGhost ? 0.3 : 1.0;
         player.mesh.children[0].material.transparent = true;
+        player.invuln = isGhost;
     }
 
     // Ракеты
-    for(let i=missiles.length-1; i>=0; i--) {
+    for (let i = missiles.length - 1; i >= 0; i--) {
         const m = missiles[i];
-        m.mesh.position.y -= 2;
-        if(m.mesh.position.y <= 0) {
+        m.mesh.position.y -= 2.5;
+        if (m.mesh.position.y <= 0) {
             entities.forEach(e => {
-                if(e.mesh.position.distanceTo(m.target) < 15 && !e.invuln) e.hp -= 200;
+                if (e.mesh.position.distanceTo(m.target) < 18) e.hp -= 150;
             });
-            scene.remove(m.mesh); scene.remove(m.marker); missiles.splice(i, 1);
+            scene.remove(m.mesh); scene.remove(m.marker);
+            missiles.splice(i, 1);
         }
     }
 
-    // Игроки и боты
+    // Сущности
     entities.forEach(ent => {
+        if (ent.hp <= 0) return;
         const oldPos = ent.mesh.position.clone();
-        if(ent.isPlayer) {
-            if(keys['KeyW']) ent.mesh.translateZ(ent.speed);
-            if(keys['KeyS']) ent.mesh.translateZ(-ent.speed);
-            if(keys['KeyA']) ent.mesh.rotation.y += 0.05;
-            if(keys['KeyD']) ent.mesh.rotation.y -= 0.05;
-            if(keys['Space'] && now - ent.lastShot > 250) { fire(ent); ent.lastShot = now; }
+        
+        if (ent.isPlayer) {
+            if (keys['KeyW']) ent.mesh.translateZ(ent.spd);
+            if (keys['KeyS']) ent.mesh.translateZ(-ent.spd);
+            if (keys['KeyA']) ent.mesh.rotation.y += 0.05;
+            if (keys['KeyD']) ent.mesh.rotation.y -= 0.05;
+            if (keys['Space'] && now - ent.lastShot > 250) { fire(ent); ent.lastShot = now; }
         } else {
-            let target = null, dMin = 150;
-            entities.forEach(other => { if(other.team !== ent.team && other.hp > 0) {
-                let d = ent.mesh.position.distanceTo(other.mesh.position);
-                if(d < dMin) { dMin = d; target = other; }
-            }});
-            if(target) {
+            let target = null, dMin = 180;
+            entities.forEach(o => {
+                if (o.team !== ent.team && o.hp > 0) {
+                    let d = ent.mesh.position.distanceTo(o.mesh.position);
+                    if (d < dMin) { dMin = d; target = o; }
+                }
+            });
+            if (target) {
                 ent.mesh.lookAt(target.mesh.position);
-                if(dMin > 10) ent.mesh.translateZ(ent.speed);
-                if(now - ent.lastShot > 600 && dMin < 60) { fire(ent); ent.lastShot = now; }
+                if (dMin > 12) ent.mesh.translateZ(ent.spd);
+                if (now - ent.lastShot > 600 && dMin < 70) { fire(ent); ent.lastShot = now; }
             }
         }
-        
-        // Коллизии
-        let box = new THREE.Box3().setFromCenterAndSize(ent.mesh.position, new THREE.Vector3(3, 4, 3));
-        for(let b of buildings) if(box.intersectsBox(b.userData.box)) { ent.mesh.position.copy(oldPos); break; }
-        if(ent.mesh.position.length() > zoneRadius) ent.hp -= 0.3;
+
+        // Коллизии со зданиями
+        let box = new THREE.Box3().setFromCenterAndSize(ent.mesh.position, new THREE.Vector3(3, 5, 3));
+        for (let b of buildings) {
+            if (box.intersectsBox(b.userData.box)) { ent.mesh.position.copy(oldPos); break; }
+        }
+        if (ent.mesh.position.length() > zoneRadius) ent.hp -= 0.4;
     });
 
     // Пули
-    for(let i=bullets.length-1; i>=0; i--) {
+    for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
-        b.mesh.position.add(b.dir.clone().multiplyScalar(3));
+        b.mesh.position.add(b.dir.clone().multiplyScalar(3.5));
         let hit = false;
-        entities.forEach(e => {
-            if(e.team !== b.owner.team && !e.invuln && b.mesh.position.distanceTo(e.mesh.position) < 3) {
-                e.hp -= 20 * b.owner.dmg; hit = true;
-            }
-        });
-        if(hit || b.mesh.position.length() > 600) { scene.remove(b.mesh); bullets.splice(i, 1); }
-    }
+        
+        for (let wall of buildings) {
+            if (wall.userData.box.containsPoint(b.mesh.position)) { hit = true; break; }
+        }
 
-    // Смерть
-    for(let i=entities.length-1; i>=0; i--) {
-        if(entities[i].hp <= 0) {
-            if(entities[i].isPlayer) { alert("DEAD. SCORE: " + score); location.reload(); }
-            entities[i].label.remove(); scene.remove(entities[i].mesh); entities.splice(i, 1);
-            if(!entities[i].isPlayer && entities[i].team !== 0) score++;
+        if (!hit) {
+            entities.forEach(e => {
+                if (e.hp > 0 && e.team !== b.owner.team && !e.invuln) {
+                    if (b.mesh.position.distanceTo(e.mesh.position) < 4) {
+                        e.hp -= 22 * b.owner.dmg; hit = true;
+                        if (b.owner.isPlayer && e.hp <= 0) score++;
+                    }
+                }
+            });
+        }
+        if (hit || b.mesh.position.length() > 800) {
+            scene.remove(b.mesh); bullets.splice(i, 1);
         }
     }
 
-    // UI и Камера
-    updateUI();
-    camera.position.lerp(new THREE.Vector3(player.mesh.position.x, 70, player.mesh.position.z + 50), 0.1);
+    // Очистка мертвых
+    for (let i = entities.length - 1; i >= 0; i--) {
+        if (entities[i].hp <= 0) {
+            if (entities[i].isPlayer) { alert("TERMINATED. SCORE: " + score); location.reload(); return; }
+            entities[i].label.remove();
+            scene.remove(entities[i].mesh);
+            entities.splice(i, 1);
+        }
+    }
+
+    // Камера и UI
+    camera.position.lerp(new THREE.Vector3(player.mesh.position.x, 75, player.mesh.position.z + 55), 0.1);
     camera.lookAt(player.mesh.position);
-    renderer.render(scene, camera);
-}
 
-function fire(owner) {
-    const bMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5), new THREE.MeshBasicMaterial({ color: owner.isPlayer ? 0x00ffff : 0xff0000 }));
-    bMesh.position.copy(owner.mesh.position).add(new THREE.Vector3(0, 2, 0));
-    const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(owner.mesh.quaternion);
-    bullets.push({ mesh: bMesh, dir, owner }); scene.add(bMesh);
-}
-
-function updateUI() {
     entities.forEach(e => {
-        const v = e.mesh.position.clone().add(new THREE.Vector3(0, 5, 0)).project(camera);
+        const v = e.mesh.position.clone().add(new THREE.Vector3(0, 6, 0)).project(camera);
         e.label.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
         e.label.style.top = `${(-(v.y * 0.5 - 0.5) * window.innerHeight)}px`;
         e.label.innerHTML = `${e.name} [${Math.ceil(e.hp)}]`;
     });
-    document.getElementById('hp-fill').style.width = (player.hp/player.maxHp*100) + "%";
+
+    document.getElementById('hp-fill').style.width = (player.hp / player.max * 100) + "%";
+    document.getElementById('ui-kills').innerText = score;
     document.getElementById('ui-alive').innerText = entities.length;
-    
+
     // Миникарта
-    mapCtx.clearRect(0,0,180,180);
+    mapCtx.clearRect(0,0,150,150);
     entities.forEach(e => {
         mapCtx.fillStyle = e.isPlayer ? "#fff" : (e.team === 0 ? "#0f0" : "#f00");
-        let mx = 90 + (e.mesh.position.x - player.mesh.position.x) * 0.3;
-        let my = 90 + (e.mesh.position.z - player.mesh.position.z) * 0.3;
-        mapCtx.fillRect(mx, my, 4, 4);
+        let mx = 75 + (e.mesh.position.x - player.mesh.position.x) * 0.35;
+        let my = 75 + (e.mesh.position.z - player.mesh.position.z) * 0.35;
+        mapCtx.fillRect(mx-2, my-2, 4, 4);
     });
+
+    renderer.render(scene, camera);
+}
+
+function fire(owner) {
+    const bMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5), new THREE.MeshBasicMaterial({ color: owner.team === 0 ? 0x00ffff : 0xff4400 }));
+    bMesh.position.copy(owner.mesh.position).add(new THREE.Vector3(0, 2, 0));
+    const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(owner.mesh.quaternion);
+    bullets.push({ mesh: bMesh, dir, owner });
+    scene.add(bMesh);
 }
 </script>
 </body>
